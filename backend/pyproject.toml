@@ -34,6 +34,9 @@ DJANGO_SETTINGS_MODULE = "config.settings.development"
 python_files = ["test_*.py"]
 python_paths = ["."]
 
+[tool.setuptools]
+packages = ["apps", "core", "config"]
+
 [build-system]
 requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
