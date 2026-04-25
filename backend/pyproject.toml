@@ -1,0 +1,39 @@
+[project]
+name = "manyoplan"
+version = "0.1.0"
+description = "Plateforme de gestion de bénévoles pour événements"
+requires-python = ">=3.13"
+dependencies = [
+    "django>=5.1",
+    "djangorestframework>=3.15",
+    "djangorestframework-simplejwt>=5.4",
+    "django-cors-headers>=4.6",
+    "django-filter>=24.3",
+    "dj-database-url>=2.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "factory-boy>=3.3",
+    "pytest>=8.0",
+    "pytest-django>=4.9",
+    "ruff>=0.9",
+    "mypy>=1.14",
+    "django-stubs>=5.1",
+]
+
+[tool.ruff]
+line-length = 99
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "DJ"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.development"
+python_files = ["test_*.py"]
+python_paths = ["."]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
