@@ -1,7 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Sparkles, UserPlus } from "lucide-react";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import {
+  useForm,
+  type FieldErrors,
+  type FieldValues,
+  type Path,
+  type UseFormRegister,
+  type UseFormSetError,
+} from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "../../components/ui/Button";
@@ -274,13 +281,23 @@ function JoinOrgForm({
   );
 }
 
-function PersonalFields({
+type PersonalFormFields = {
+  first_name: string;
+  last_name: string;
+  username: string;
+  email: string;
+  password: string;
+  password_confirm: string;
+};
+
+function PersonalFields<T extends PersonalFormFields>({
   register,
   errors,
 }: {
-  register: ReturnType<typeof useForm>["register"];
-  errors: Record<string, { message?: string } | undefined>;
+  register: UseFormRegister<T>;
+  errors: FieldErrors<T>;
 }) {
+  const errs = errors as FieldErrors<PersonalFormFields>;
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
@@ -288,53 +305,56 @@ function PersonalFields({
           id="first_name"
           label="Prénom"
           autoComplete="given-name"
-          error={errors.first_name?.message}
-          {...register("first_name")}
+          error={errs.first_name?.message}
+          {...register("first_name" as Path<T>)}
         />
         <Input
           id="last_name"
           label="Nom"
           autoComplete="family-name"
-          error={errors.last_name?.message}
-          {...register("last_name")}
+          error={errs.last_name?.message}
+          {...register("last_name" as Path<T>)}
         />
       </div>
       <Input
         id="username"
         label="Nom d'utilisateur"
         autoComplete="username"
-        error={errors.username?.message}
-        {...register("username")}
+        error={errs.username?.message}
+        {...register("username" as Path<T>)}
       />
       <Input
         id="email"
         label="Email"
         type="email"
         autoComplete="email"
-        error={errors.email?.message}
-        {...register("email")}
+        error={errs.email?.message}
+        {...register("email" as Path<T>)}
       />
       <Input
         id="password"
         label="Mot de passe"
         type="password"
         autoComplete="new-password"
-        error={errors.password?.message}
-        {...register("password")}
+        error={errs.password?.message}
+        {...register("password" as Path<T>)}
       />
       <Input
         id="password_confirm"
         label="Confirmer"
         type="password"
         autoComplete="new-password"
-        error={errors.password_confirm?.message}
-        {...register("password_confirm")}
+        error={errs.password_confirm?.message}
+        {...register("password_confirm" as Path<T>)}
       />
     </>
   );
 }
 
-function handleApiError(err: unknown, setError: (field: string, error: { message: string }) => void) {
+function handleApiError<T extends FieldValues>(
+  err: unknown,
+  setError: UseFormSetError<T>,
+) {
   const error = err as { response?: { data?: Record<string, unknown> } };
   const data = error.response?.data;
   if (!data) {
@@ -344,16 +364,16 @@ function handleApiError(err: unknown, setError: (field: string, error: { message
   // Top-level field errors
   for (const [field, msg] of Object.entries(data)) {
     if (Array.isArray(msg)) {
-      setError(field, { message: String(msg[0]) });
+      setError(field as Path<T>, { message: String(msg[0]) });
     } else if (typeof msg === "object" && msg !== null) {
       // Nested errors (e.g. org.invite_code)
       for (const [nested, nestedMsg] of Object.entries(msg as Record<string, unknown>)) {
         const arr = Array.isArray(nestedMsg) ? nestedMsg : [nestedMsg];
         const targetField = field === "org" && nested === "invite_code" ? "invite_code" : nested;
-        setError(targetField, { message: String(arr[0]) });
+        setError(targetField as Path<T>, { message: String(arr[0]) });
       }
     } else {
-      setError(field, { message: String(msg) });
+      setError(field as Path<T>, { message: String(msg) });
     }
   }
 }
