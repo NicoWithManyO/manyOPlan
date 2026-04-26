@@ -661,7 +661,9 @@ function TaskHeader({
   const [showAssign, setShowAssign] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(slots.length === 1 ? slots[0] : null);
   const { fetchAssignments } = useAssignmentStore();
-  const confirmed = assignments.filter((a) => a.status === "confirmed").length;
+  const confirmedAssns = assignments.filter((a) => a.status === "confirmed");
+  const confirmed = new Set(confirmedAssns.map((a) => a.user)).size;
+  const plages = confirmedAssns.length;
   const minV = task.min_volunteers;
   const totalCapacity = slots.reduce((sum, s) => sum + (s.capacity ?? 0), 0);
   const hasCapacity = slots.some((s) => s.capacity !== null);
@@ -678,7 +680,7 @@ function TaskHeader({
       <div className="flex items-center justify-center gap-1.5 mt-0.5">
         <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", underMin ? "text-amber-600" : minV !== null && confirmed >= minV ? "text-emerald-600" : "text-indigo-700")}>
           <Users className="h-3 w-3" />
-          {confirmed}{minV !== null ? `/${minV}` : hasCapacity ? `/${totalCapacity}` : ""}
+          {confirmed} | {plages}{minV !== null ? ` / ${minV}` : ""}
           {isFull && <span className="text-amber-600">!</span>}
         </span>
         {isAdmin && (
@@ -885,10 +887,10 @@ function TransposedDayColumn({
         const task = taskMap.get(taskId)!;
         const taskSlots = daySlots.filter((ds) => ds.task.id === taskId);
         const taskAssignments = assignments.filter((a) => taskSlots.some((ts) => ts.slot.id === a.slot));
-        const confirmed = taskAssignments.filter((a) => a.status === "confirmed").length;
+        const taskConfirmedAssns = taskAssignments.filter((a) => a.status === "confirmed");
+        const confirmed = new Set(taskConfirmedAssns.map((a) => a.user)).size;
+        const plages = taskConfirmedAssns.length;
         const minV = task.min_volunteers;
-        const totalCapacity = taskSlots.reduce((sum, ts) => sum + (ts.slot.capacity ?? 0), 0);
-        const hasCapacity = taskSlots.some((ts) => ts.slot.capacity !== null);
         const underMin = minV !== null && confirmed < minV;
 
         return (
@@ -900,7 +902,7 @@ function TransposedDayColumn({
               <div className="flex items-center justify-end gap-1.5">
                 <span className={cn("inline-flex items-center gap-1 text-xs font-semibold", underMin ? "text-amber-600" : minV !== null && confirmed >= minV ? "text-emerald-600" : "text-indigo-700")}>
                   <Users className="h-3 w-3" />
-                  {confirmed}{minV !== null ? `/${minV}` : hasCapacity ? `/${totalCapacity}` : ""}
+                  {confirmed} | {plages}{minV !== null ? ` / ${minV}` : ""}
                 </span>
                 {isAdmin && (
                   <Popover.Root>

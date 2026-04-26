@@ -64,7 +64,12 @@ class Slot(TimestampMixin):
 
     @property
     def confirmed_count(self):
-        return self.assignments.filter(status="confirmed").count()
+        return (
+            self.assignments.filter(status="confirmed")
+            .values("user")
+            .distinct()
+            .count()
+        )
 
     @property
     def is_full(self):

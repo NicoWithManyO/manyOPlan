@@ -235,7 +235,9 @@ function SlotCard({
     data: { slotId: slot.id, taskId },
   });
 
-  const confirmed = slotAssignments.filter((a) => a.status === "confirmed").length;
+  const confirmedAssns = slotAssignments.filter((a) => a.status === "confirmed");
+  const confirmed = new Set(confirmedAssns.map((a) => a.user)).size;
+  const plages = confirmedAssns.length;
   const capacity = slot.capacity;
   const fillPercent = capacity ? Math.min((confirmed / capacity) * 100, 100) : 0;
   const isFull = capacity !== null && confirmed >= capacity;
@@ -312,9 +314,7 @@ function SlotCard({
       <div className="mb-2 flex items-center gap-2">
         <Users className="h-3.5 w-3.5 text-gray-400" />
         <span className="text-xs text-gray-600">
-          {confirmed}
-          {capacity !== null ? ` / ${capacity}` : ""} inscrit
-          {confirmed !== 1 ? "s" : ""}
+          {confirmed} | {plages}{capacity !== null ? ` / ${capacity}` : ""}
         </span>
         {isFull && (
           <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
