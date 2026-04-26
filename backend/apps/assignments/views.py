@@ -1,7 +1,9 @@
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.tasks.models import Slot
 from core.permissions import IsEventAdmin, IsEventMember
@@ -11,6 +13,7 @@ from .serializers import (
     AssignmentCreateSerializer,
     AssignmentSerializer,
     AssignmentStatusSerializer,
+    MyAssignmentSerializer,
 )
 from .services import (
     AssignmentError,
@@ -238,3 +241,19 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         qs = self.get_queryset().filter(user=request.user)
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
+
+
+class MyAssignmentsView(APIView):
+    """All upcoming/in-progress assignments for the current user, across all orgs."""
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        qs = (
+            Assignment.objects.filter(
+                user=request.user, end_date__gte=timezone.now()
+            )
+            .select_related("slot__task__event__organization")
+            .order_by("start_date")
+        )
+        return Response(MyAssignmentSerializer(qs, many=True).data)

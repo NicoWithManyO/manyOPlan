@@ -37,6 +37,25 @@ class AssignmentSerializer(serializers.ModelSerializer):
         return obj.user.display_name
 
 
+class MyAssignmentSerializer(AssignmentSerializer):
+    event_id = serializers.IntegerField(source="slot.task.event_id", read_only=True)
+    event_name = serializers.CharField(source="slot.task.event.name", read_only=True)
+    organization_id = serializers.IntegerField(
+        source="slot.task.event.organization_id", read_only=True
+    )
+    organization_name = serializers.CharField(
+        source="slot.task.event.organization.name", read_only=True
+    )
+
+    class Meta(AssignmentSerializer.Meta):
+        fields = AssignmentSerializer.Meta.fields + (
+            "event_id",
+            "event_name",
+            "organization_id",
+            "organization_name",
+        )
+
+
 class AssignmentCreateSerializer(serializers.Serializer):
     slot = serializers.IntegerField()
     start_date = serializers.DateTimeField()

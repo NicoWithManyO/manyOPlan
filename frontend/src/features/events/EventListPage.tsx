@@ -6,6 +6,7 @@ import { useEventStore } from "../../stores/eventStore";
 import { useOrgStore } from "../../stores/orgStore";
 import type { Event } from "../../types/models";
 import { cn } from "../../utils/cn";
+import { MyEngagements } from "./MyEngagements";
 
 const eventTypeLabels: Record<string, string> = {
   festival: "Festival",
@@ -100,6 +101,8 @@ export function EventListPage() {
 
   return (
     <div>
+      <MyEngagements />
+
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Événements</h2>

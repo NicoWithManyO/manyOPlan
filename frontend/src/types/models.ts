@@ -45,6 +45,7 @@ export interface RegisterData {
   password_confirm: string;
   first_name: string;
   last_name: string;
+  nickname?: string;
   action?: "create_org" | "join_org";
   org?: { name: string; slug?: string; invite_code: string };
   invite_code?: string;
@@ -163,6 +164,13 @@ export interface Assignment {
   task_name: string;
   status: AssignmentStatus;
   assigned_at: string;
+}
+
+export interface MyEngagement extends Assignment {
+  event_id: number;
+  event_name: string;
+  organization_id: number;
+  organization_name: string;
 }
 
 // News

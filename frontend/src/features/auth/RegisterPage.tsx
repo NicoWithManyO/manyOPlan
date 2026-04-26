@@ -25,6 +25,7 @@ const baseSchema = z
     email: z.string().email("Email invalide"),
     first_name: z.string().min(1, "Prénom requis"),
     last_name: z.string().min(1, "Nom requis"),
+    nickname: z.string().max(60, "60 caractères maximum").optional(),
     password: z.string().min(8, "8 caractères minimum"),
     password_confirm: z.string(),
   })
@@ -170,6 +171,7 @@ function CreateOrgForm({
         password_confirm: data.password_confirm,
         first_name: data.first_name,
         last_name: data.last_name,
+        nickname: data.nickname?.trim() || undefined,
         action: "create_org",
         org: {
           name: data.org_name,
@@ -249,6 +251,7 @@ function JoinOrgForm({
         password_confirm: data.password_confirm,
         first_name: data.first_name,
         last_name: data.last_name,
+        nickname: data.nickname?.trim() || undefined,
         action: "join_org",
         invite_code: data.invite_code,
       });
@@ -284,6 +287,7 @@ function JoinOrgForm({
 type PersonalFormFields = {
   first_name: string;
   last_name: string;
+  nickname?: string;
   username: string;
   email: string;
   password: string;
@@ -315,6 +319,19 @@ function PersonalFields<T extends PersonalFormFields>({
           error={errs.last_name?.message}
           {...register("last_name" as Path<T>)}
         />
+      </div>
+      <div>
+        <Input
+          id="nickname"
+          label="Surnom (optionnel)"
+          autoComplete="nickname"
+          placeholder="Ex : Niko"
+          error={errs.nickname?.message}
+          {...register("nickname" as Path<T>)}
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          Affiché dans les plannings. Vide → « Prénom L. ».
+        </p>
       </div>
       <Input
         id="username"

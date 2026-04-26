@@ -55,10 +55,14 @@ class RegisterSerializer(serializers.ModelSerializer):
             "password_confirm",
             "first_name",
             "last_name",
+            "nickname",
             "action",
             "org",
             "invite_code",
         )
+        extra_kwargs = {
+            "nickname": {"required": False, "allow_blank": True},
+        }
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
