@@ -87,7 +87,7 @@ function MemberManagement({
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const memberUserIds = new Set(members.map((m) => m.user));
 
   const handleSearch = (q: string) => {

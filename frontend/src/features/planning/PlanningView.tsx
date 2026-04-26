@@ -157,7 +157,7 @@ function AddUserToSlot({
   const [busy, setBusy] = useState(false);
   const [startTime, setStartTime] = useState(toTimeInput(slot.start_date));
   const [endTime, setEndTime] = useState(toTimeInput(slot.end_date));
-  const timeout = useRef<ReturnType<typeof setTimeout>>();
+  const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const assignedUserIds = new Set(assignments.filter((a) => a.slot === slot.id).map((a) => a.user));
 
   const handleSearch = (q: string) => {
@@ -516,7 +516,7 @@ function TimelineSlot({
               const barEl = (
                 <div
                   className={cn(
-                    "absolute rounded-sm border-l-[3px] overflow-hidden flex gap-0.5 px-0.5 py-0.5",
+                    "absolute rounded-sm border-l-[3px] overflow-hidden flex flex-col gap-0.5 px-0.5 py-0.5",
                     placeholder
                       ? "border-l-gray-400 bg-gray-100/90"
                       : isMine
@@ -535,20 +535,20 @@ function TimelineSlot({
                   }}
                   title={`${a.full_name}${placeholder ? " (non inscrit)" : ""}: ${fmt(a.start_date)} - ${fmt(a.end_date)}`}
                 >
+                  {totalCols < 3 && (
+                    <div className="text-[8px] text-gray-400 leading-tight shrink-0">
+                      <p>{fmt(a.start_date)}</p>
+                      <p>{fmt(a.end_date)}</p>
+                    </div>
+                  )}
                   <p className={cn(
-                    "text-[10px] leading-none [writing-mode:vertical-rl] [text-orientation:upright] truncate shrink-0",
+                    "text-[10px] leading-none [writing-mode:vertical-rl] [text-orientation:upright] truncate min-h-0 flex-1",
                     placeholder ? "italic text-gray-500"
                       : isMine ? "font-bold text-indigo-900"
                       : "font-medium text-gray-700",
                   )}>
                     {a.full_name}{placeholder ? " *" : ""}
                   </p>
-                  {totalCols < 3 && (
-                    <div className="text-[8px] text-gray-400 leading-tight ml-auto">
-                      <p>{fmt(a.start_date)}</p>
-                      <p>{fmt(a.end_date)}</p>
-                    </div>
-                  )}
                 </div>
               );
 
@@ -693,11 +693,10 @@ const ROW_HEIGHT = 48;
 const TASK_LABEL_WIDTH = 160;
 
 function TransposedSlot({
-  slot, task, left, width, slotAssignments, userId, eventId, isAdmin, startHour,
+  slot, task, left, width, slotAssignments, userId, eventId, isAdmin,
 }: {
   slot: Slot; task: Task; left: number; width: number;
   slotAssignments: Assignment[]; userId: number | undefined; eventId: number; isAdmin: boolean;
-  startHour: number;
 }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -902,7 +901,7 @@ function TransposedDayColumn({
                 return (
                   <TransposedSlot key={slot.id} slot={slot} task={task}
                     left={left} width={width} slotAssignments={slotAssignments}
-                    userId={userId} eventId={eventId} isAdmin={isAdmin} startHour={startHour} />
+                    userId={userId} eventId={eventId} isAdmin={isAdmin} />
                 );
               })}
             </div>
