@@ -100,7 +100,7 @@ class EventMembershipSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "created_at")
 
     def get_full_name(self, obj):
-        return str(obj.user)
+        return obj.user.display_name
 
 
 class JoinEventSerializer(serializers.Serializer):

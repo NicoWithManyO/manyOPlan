@@ -38,7 +38,7 @@ class ConversationListView(APIView):
                     {
                         "user_id": partner.id,
                         "username": partner.username,
-                        "full_name": str(partner),
+                        "full_name": partner.display_name,
                         "last_message": last_msg.content[:100],
                         "last_date": last_msg.created_at,
                         "unread_count": unread,

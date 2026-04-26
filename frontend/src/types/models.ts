@@ -4,6 +4,8 @@ export interface User {
   email: string;
   first_name: string;
   last_name: string;
+  nickname: string;
+  display_name: string;
   is_staff: boolean;
   is_placeholder: boolean;
 }

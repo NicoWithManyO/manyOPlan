@@ -1,5 +1,12 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import { Building2, Check, ChevronDown, Plus, UserPlus } from "lucide-react";
+import {
+  Building2,
+  Check,
+  ChevronDown,
+  Plus,
+  Settings,
+  UserPlus,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useOrgStore } from "../stores/orgStore";
 import { cn } from "../utils/cn";
@@ -65,6 +72,18 @@ export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
               )}
             </DropdownMenu.Item>
           ))}
+          {currentOrg?.my_role === "admin" && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-gray-100" />
+              <DropdownMenu.Item
+                onSelect={() => navigate(`/orgs/${currentOrg.id}/settings`)}
+                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none hover:bg-gray-100"
+              >
+                <Settings className="h-3.5 w-3.5 text-gray-400" />
+                Paramètres de l'asso
+              </DropdownMenu.Item>
+            </>
+          )}
           <DropdownMenu.Separator className="my-1 h-px bg-gray-100" />
           <DropdownMenu.Item
             onSelect={() => navigate("/orgs/create")}

@@ -15,11 +15,22 @@ User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
     is_staff = serializers.BooleanField(read_only=True)
+    display_name = serializers.CharField(read_only=True)
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "first_name", "last_name", "is_staff", "is_placeholder")
-        read_only_fields = ("id", "is_staff", "is_placeholder")
+        fields = (
+            "id",
+            "username",
+            "email",
+            "first_name",
+            "last_name",
+            "nickname",
+            "display_name",
+            "is_staff",
+            "is_placeholder",
+        )
+        read_only_fields = ("id", "is_staff", "is_placeholder", "display_name")
 
 
 class RegisterSerializer(serializers.ModelSerializer):

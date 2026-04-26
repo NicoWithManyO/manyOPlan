@@ -13,6 +13,7 @@ const profileSchema = z.object({
   username: z.string().min(3, "3 caractères minimum"),
   first_name: z.string().min(1, "Prénom requis"),
   last_name: z.string(),
+  nickname: z.string().max(60, "60 caractères maximum"),
   email: z.string().email("Email invalide"),
 });
 
@@ -43,6 +44,7 @@ export function ProfilePage() {
       username: user?.username ?? "",
       first_name: user?.first_name ?? "",
       last_name: user?.last_name ?? "",
+      nickname: user?.nickname ?? "",
       email: user?.email ?? "",
     },
   });
@@ -111,6 +113,18 @@ export function ProfilePage() {
             error={profileErrors.last_name?.message}
             {...regProfile("last_name")}
           />
+        </div>
+        <div>
+          <Input
+            id="nickname"
+            label="Surnom (affiché dans les plannings)"
+            placeholder={user?.first_name ? `Ex : ${user.first_name}` : "Ex : Léo"}
+            error={profileErrors.nickname?.message}
+            {...regProfile("nickname")}
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Si vide, on affiche « Prénom L. » (initiale du nom).
+          </p>
         </div>
         <Input
           id="email"

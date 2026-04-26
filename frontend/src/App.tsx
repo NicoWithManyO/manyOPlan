@@ -13,6 +13,7 @@ import { MessagesPage } from "./features/messaging/MessagesPage";
 import { CreateOrgPage } from "./features/organizations/CreateOrgPage";
 import { CreateOrJoinPage } from "./features/organizations/CreateOrJoinPage";
 import { JoinOrgPage } from "./features/organizations/JoinOrgPage";
+import { OrgSettingsPage } from "./features/organizations/OrgSettingsPage";
 import { AuthLayout } from "./layouts/AuthLayout";
 import { DashboardLayout } from "./layouts/DashboardLayout";
 import { useAuthStore } from "./stores/authStore";
@@ -50,6 +51,7 @@ export default function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/orgs/create" element={<CreateOrgPage />} />
             <Route path="/orgs/join" element={<JoinOrgPage />} />
+            <Route path="/orgs/:id/settings" element={<OrgSettingsPage />} />
           </Route>
         </Route>
 

@@ -122,7 +122,7 @@ class OrganizationMembershipSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "user", "username", "full_name", "email", "created_at")
 
     def get_full_name(self, obj):
-        return str(obj.user)
+        return obj.user.display_name
 
 
 class JoinOrganizationSerializer(serializers.Serializer):
