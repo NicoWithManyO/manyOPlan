@@ -516,7 +516,7 @@ function TimelineSlot({
               const barEl = (
                 <div
                   className={cn(
-                    "absolute rounded-sm border-l-[3px] overflow-hidden flex flex-col gap-0.5 px-0.5 py-0.5",
+                    "absolute rounded-sm border-l-[3px] overflow-hidden flex flex-row gap-1 px-1 py-0.5",
                     placeholder
                       ? "border-l-gray-400 bg-gray-100/90"
                       : isMine
@@ -535,20 +535,20 @@ function TimelineSlot({
                   }}
                   title={`${a.full_name}${placeholder ? " (non inscrit)" : ""}: ${fmt(a.start_date)} - ${fmt(a.end_date)}`}
                 >
-                  {totalCols < 3 && (
-                    <div className="text-[8px] text-gray-400 leading-tight shrink-0">
-                      <p>{fmt(a.start_date)}</p>
-                      <p>{fmt(a.end_date)}</p>
-                    </div>
-                  )}
                   <p className={cn(
-                    "text-[10px] leading-none [writing-mode:vertical-rl] [text-orientation:upright] truncate min-h-0 flex-1",
+                    "text-[10px] leading-none [writing-mode:vertical-rl] [text-orientation:upright] truncate shrink-0",
                     placeholder ? "italic text-gray-500"
                       : isMine ? "font-bold text-indigo-900"
                       : "font-medium text-gray-700",
                   )}>
                     {a.full_name}{placeholder ? " *" : ""}
                   </p>
+                  {totalCols < 3 && (
+                    <div className="text-[8px] text-gray-400 leading-tight shrink-0">
+                      <p>{fmt(a.start_date)}</p>
+                      <p>{fmt(a.end_date)}</p>
+                    </div>
+                  )}
                 </div>
               );
 
