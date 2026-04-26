@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Clock, Plus, Trash2, X } from "lucide-react";
+import { Clock, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -29,7 +29,8 @@ const schema = z.object({
   slot_capacity: optionalInt,
 });
 
-type FormData = z.infer<typeof schema>;
+type FormInput = z.input<typeof schema>;
+type FormOutput = z.output<typeof schema>;
 
 function toLocalDatetime(isoStr: string) {
   const d = new Date(isoStr);
@@ -57,7 +58,7 @@ function TaskForm({
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(schema),
     defaultValues: task
       ? {
@@ -77,7 +78,7 @@ function TaskForm({
         },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormOutput) => {
     try {
       if (isEdit) {
         await updateTask(eventId, task.id, {

@@ -17,7 +17,8 @@ const schema = z
     path: ["end_date"],
   });
 
-type FormData = z.infer<typeof schema>;
+type FormInput = z.input<typeof schema>;
+type FormOutput = z.output<typeof schema>;
 
 export function SlotForm({
   eventId,
@@ -33,12 +34,12 @@ export function SlotForm({
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  } = useForm<FormInput, unknown, FormOutput>({
     resolver: zodResolver(schema),
     defaultValues: { capacity: null },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormOutput) => {
     try {
       await createSlot(eventId, taskId, {
         start_date: new Date(data.start_date).toISOString(),
