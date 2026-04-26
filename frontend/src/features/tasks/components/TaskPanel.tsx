@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Clock, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -7,7 +7,7 @@ import { z } from "zod";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { useTaskStore } from "../../../stores/taskStore";
-import type { Task } from "../../../types/models";
+import type { Slot, Task } from "../../../types/models";
 import { cn } from "../../../utils/cn";
 
 const optionalInt = z
@@ -39,6 +39,124 @@ function toLocalDatetime(isoStr: string) {
   return local.toISOString().slice(0, 16);
 }
 
+function ExistingSlotRow({
+  slot,
+  eventId,
+  taskId,
+}: {
+  slot: Slot;
+  eventId: number;
+  taskId: number;
+}) {
+  const { updateSlot, deleteSlot } = useTaskStore();
+  const initialStart = toLocalDatetime(slot.start_date);
+  const initialEnd = toLocalDatetime(slot.end_date);
+  const initialCapacity = slot.capacity?.toString() ?? "";
+
+  const [start, setStart] = useState(initialStart);
+  const [end, setEnd] = useState(initialEnd);
+  const [capacity, setCapacity] = useState(initialCapacity);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const dirty =
+    start !== initialStart ||
+    end !== initialEnd ||
+    capacity !== initialCapacity;
+
+  const handleSave = async () => {
+    setError("");
+    if (!start || !end) {
+      setError("Début et fin requis");
+      return;
+    }
+    if (new Date(start) >= new Date(end)) {
+      setError("La fin doit être après le début");
+      return;
+    }
+    const trimmed = capacity.trim();
+    const parsedCapacity =
+      trimmed === "" ? null : Number.isFinite(Number(trimmed)) ? Number(trimmed) : null;
+
+    setBusy(true);
+    try {
+      await updateSlot(eventId, taskId, slot.id, {
+        start_date: new Date(start).toISOString(),
+        end_date: new Date(end).toISOString(),
+        capacity: parsedCapacity,
+      });
+      toast.success("Créneau modifié");
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      const msg = apiErr.response?.data?.detail ?? "Erreur lors de la modification";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirm("Supprimer ce créneau ?")) return;
+    setBusy(true);
+    try {
+      await deleteSlot(eventId, taskId, slot.id);
+      toast.success("Créneau supprimé");
+    } catch {
+      toast.error("Erreur");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-gray-50 p-2.5 space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Input
+          id={`slot-${slot.id}-start`}
+          label="Début"
+          type="datetime-local"
+          value={start}
+          onChange={(e) => setStart(e.target.value)}
+        />
+        <Input
+          id={`slot-${slot.id}-end`}
+          label="Fin"
+          type="datetime-local"
+          value={end}
+          onChange={(e) => setEnd(e.target.value)}
+        />
+      </div>
+      <Input
+        id={`slot-${slot.id}-cap`}
+        label="Capacité"
+        type="number"
+        min={1}
+        placeholder="Illimité"
+        value={capacity}
+        onChange={(e) => setCapacity(e.target.value)}
+      />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+      <div className="flex items-center justify-between pt-1">
+        <button
+          type="button"
+          onClick={handleDelete}
+          disabled={busy}
+          className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 disabled:opacity-50"
+          title="Supprimer ce créneau"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+        {dirty && (
+          <Button type="button" size="sm" isLoading={busy} onClick={handleSave}>
+            Enregistrer
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TaskForm({
   eventId,
   task,
@@ -52,7 +170,7 @@ function TaskForm({
   eventStartDate?: string;
   eventEndDate?: string;
 }) {
-  const { createTask, updateTask, createSlot, deleteSlot } = useTaskStore();
+  const { createTask, updateTask, createSlot } = useTaskStore();
   const isEdit = !!task;
   const {
     register,
@@ -166,28 +284,7 @@ function TaskForm({
         <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
           <p className="text-xs font-medium text-gray-700">Créneaux existants</p>
           {task.slots.map((s) => (
-            <div key={s.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2 text-xs">
-              <div className="flex items-center gap-1.5 text-gray-700">
-                <Clock className="h-3.5 w-3.5 text-indigo-500" />
-                {new Date(s.start_date).toLocaleString("fr-FR", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}
-                {" → "}
-                {new Date(s.end_date).toLocaleString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                {s.capacity !== null && <span className="text-gray-400 ml-1">({s.capacity} places)</span>}
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (!confirm("Supprimer ce créneau ?")) return;
-                  try {
-                    await deleteSlot(eventId, task.id, s.id);
-                    toast.success("Créneau supprimé");
-                  } catch { toast.error("Erreur"); }
-                }}
-                className="rounded p-1 text-gray-400 hover:text-red-500"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            <ExistingSlotRow key={s.id} slot={s} eventId={eventId} taskId={task.id} />
           ))}
         </div>
       )}

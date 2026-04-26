@@ -1,6 +1,29 @@
 from rest_framework.permissions import BasePermission
 
 
+def _resolve_event(obj):
+    """Find the Event tied to obj, traversing Task/Slot/Assignment if needed."""
+    from apps.events.models import Event
+
+    if isinstance(obj, Event):
+        return obj
+    # Direct .event (Task, EventMembership, News, …)
+    event = getattr(obj, "event", None)
+    if event:
+        return event
+    # Slot has .task.event
+    task = getattr(obj, "task", None)
+    if task is not None:
+        return getattr(task, "event", None)
+    # Assignment has .slot.task.event
+    slot = getattr(obj, "slot", None)
+    if slot is not None:
+        task = getattr(slot, "task", None)
+        if task is not None:
+            return getattr(task, "event", None)
+    return None
+
+
 class IsOrgMember(BasePermission):
     """User has any membership on the org in context."""
 
@@ -104,7 +127,7 @@ class IsEventAdmin(BasePermission):
             return True
         from apps.events.models import Event, EventMembership
 
-        event = obj if isinstance(obj, Event) else getattr(obj, "event", None)
+        event = _resolve_event(obj)
         if not event:
             return False
         if self._is_org_admin_of_event(request.user, event):

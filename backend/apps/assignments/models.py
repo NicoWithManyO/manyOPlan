@@ -37,7 +37,6 @@ class Assignment(models.Model):
     class Meta:
         verbose_name = "Affectation"
         verbose_name_plural = "Affectations"
-        unique_together = ("user", "slot")
         ordering = ["start_date"]
 
     def __str__(self):

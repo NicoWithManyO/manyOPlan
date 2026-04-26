@@ -149,8 +149,9 @@ class AssignmentViewSet(viewsets.ModelViewSet):
             )
 
         from django.utils.dateparse import parse_datetime
-        from .services import check_overlap, validate_within_slot
         from django.utils.timezone import localtime
+
+        from .services import validate_within_slot
 
         parsed_start = parse_datetime(start_date)
         parsed_end = parse_datetime(end_date)
@@ -165,17 +166,26 @@ class AssignmentViewSet(viewsets.ModelViewSet):
         except AssignmentError as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check overlap with new times (exclude current assignment's slot)
-        if assignment.status == "confirmed" and not is_admin:
-            overlap = check_overlap(
-                assignment.user, parsed_start, parsed_end,
-                exclude_slot=assignment.slot,
+        # Always reject if the new range would overlap another plage of the same user
+        # (intra-slot or cross-slot). Admin included — overlap is incoherent data.
+        self_overlap = (
+            Assignment.objects.filter(
+                user=assignment.user,
+                start_date__lt=parsed_end,
+                end_date__gt=parsed_start,
             )
-            if overlap:
-                return Response(
-                    {"detail": f"Chevauchement avec « {overlap.slot.task.name} »."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            .exclude(id=assignment.id)
+            .select_related("slot__task")
+            .first()
+        )
+        if self_overlap:
+            s = localtime(self_overlap.start_date)
+            e = localtime(self_overlap.end_date)
+            return Response(
+                {"detail": f"Chevauchement avec « {self_overlap.slot.task.name} » "
+                           f"({s:%H:%M}-{e:%H:%M})."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         assignment.start_date = parsed_start
         assignment.end_date = parsed_end
@@ -225,10 +235,21 @@ class AssignmentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Check if already assigned to target slot
-        if Assignment.objects.filter(user=assignment.user, slot=new_slot).exists():
+        # Reject if the moving plage overlaps another plage of this user on the target slot.
+        conflict = (
+            Assignment.objects.filter(
+                user=assignment.user,
+                slot=new_slot,
+                status=Assignment.Status.CONFIRMED,
+                start_date__lt=assignment.end_date,
+                end_date__gt=assignment.start_date,
+            )
+            .exclude(id=assignment.id)
+            .first()
+        )
+        if conflict:
             return Response(
-                {"detail": "Déjà inscrit sur ce créneau."},
+                {"detail": "Chevauchement avec une autre inscription sur ce créneau."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

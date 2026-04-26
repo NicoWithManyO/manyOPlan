@@ -21,7 +21,7 @@ const TOKENS_KEY = "manyoplan_tokens";
 
 function loadTokens(): AuthTokens | null {
   try {
-    const raw = localStorage.getItem(TOKENS_KEY);
+    const raw = sessionStorage.getItem(TOKENS_KEY);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -30,9 +30,9 @@ function loadTokens(): AuthTokens | null {
 
 function saveTokens(tokens: AuthTokens | null) {
   if (tokens) {
-    localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
+    sessionStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
   } else {
-    localStorage.removeItem(TOKENS_KEY);
+    sessionStorage.removeItem(TOKENS_KEY);
   }
 }
 

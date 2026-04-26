@@ -19,7 +19,7 @@ const CURRENT_ORG_KEY = "manyoplan_current_org";
 
 function loadCurrentOrgId(): number | null {
   try {
-    const raw = localStorage.getItem(CURRENT_ORG_KEY);
+    const raw = sessionStorage.getItem(CURRENT_ORG_KEY);
     return raw ? Number(raw) : null;
   } catch {
     return null;
@@ -28,9 +28,9 @@ function loadCurrentOrgId(): number | null {
 
 function saveCurrentOrgId(id: number | null) {
   if (id !== null) {
-    localStorage.setItem(CURRENT_ORG_KEY, String(id));
+    sessionStorage.setItem(CURRENT_ORG_KEY, String(id));
   } else {
-    localStorage.removeItem(CURRENT_ORG_KEY);
+    sessionStorage.removeItem(CURRENT_ORG_KEY);
   }
 }
 

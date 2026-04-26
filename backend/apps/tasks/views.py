@@ -1,3 +1,7 @@
+from datetime import timedelta
+
+from django.db import transaction
+from django.utils.timezone import localtime
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -77,6 +81,51 @@ class SlotViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(task_id=self.kwargs["task_pk"])
+
+    def partial_update(self, request, *args, **kwargs):
+        return self._update_slot(request, partial=True)
+
+    def update(self, request, *args, **kwargs):
+        return self._update_slot(request, partial=False)
+
+    def _update_slot(self, request, partial):
+        slot = self.get_object()
+        old_start = slot.start_date
+        old_end = slot.end_date
+
+        serializer = self.get_serializer(slot, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        new_start = serializer.validated_data.get("start_date", old_start)
+        new_end = serializer.validated_data.get("end_date", old_end)
+        delta = new_start - old_start
+
+        # Pre-validate: every assignment, once shifted by `delta`, must still
+        # fit inside the new slot range. Otherwise reject with a clear error.
+        from apps.assignments.models import Assignment
+        for assn in Assignment.objects.filter(slot=slot).select_related("user"):
+            shifted_start = assn.start_date + delta
+            shifted_end = assn.end_date + delta
+            if shifted_start < new_start or shifted_end > new_end:
+                return Response(
+                    {"detail": (
+                        f"L'inscription de {assn.user.display_name} "
+                        f"({localtime(assn.start_date):%H:%M}-{localtime(assn.end_date):%H:%M}) "
+                        f"ne tiendrait plus dans le nouveau créneau."
+                    )},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        with transaction.atomic():
+            serializer.save()
+            if delta != timedelta(0):
+                # Shift every assignment by the same delta to preserve relative timing.
+                for assn in Assignment.objects.filter(slot=slot):
+                    assn.start_date += delta
+                    assn.end_date += delta
+                    assn.save(update_fields=["start_date", "end_date"])
+
+        slot.refresh_from_db()
+        return Response(SlotSerializer(slot).data)
 
     @action(
         detail=False,

@@ -45,35 +45,67 @@ def validate_within_slot(slot, start_date, end_date):
         raise AssignmentError("La fin doit être après le début.")
 
 
+def _ensure_event_membership(user, event):
+    """Auto-enroll the user in the event when they get an assignment.
+    Skipped for placeholder accounts (they are slot fillers, not real members).
+    """
+    if getattr(user, "is_placeholder", False):
+        return
+    from apps.events.models import EventMembership
+
+    EventMembership.objects.get_or_create(
+        user=user,
+        event=event,
+        defaults={"role": EventMembership.Role.VOLUNTEER},
+    )
+
+
 def create_assignment(user, slot, start_date, end_date, force=False):
     """
     Create an assignment for a user on a slot with chosen time range.
 
     - Validates times are within slot boundaries
-    - Checks for duplicate assignment
-    - Checks for time overlap with other confirmed assignments
+    - Checks for time overlap (intra and cross-slot)
     - Auto-sets status to backup if slot is full
-    - force=True (admin) skips overlap check and forces confirmed status
+    - force=True (admin) skips capacity-based status and cross-slot overlap,
+      but still rejects intra-user overlapping plages
+    - Auto-enrolls the user as a volunteer of the event on their first assignment
     """
     # Validate within slot
     validate_within_slot(slot, start_date, end_date)
 
-    # Check duplicate
-    existing = Assignment.objects.filter(user=user, slot=slot).first()
-    if existing:
-        raise AlreadyAssignedError("Vous êtes déjà inscrit sur ce créneau.")
-
     if force:
-        return Assignment.objects.create(
+        # Even with admin force, never write data where the same user has two
+        # plages overlapping in time — that's incoherent, not a rule to override.
+        self_overlap = (
+            Assignment.objects.filter(
+                user=user,
+                start_date__lt=end_date,
+                end_date__gt=start_date,
+            )
+            .select_related("slot__task")
+            .first()
+        )
+        if self_overlap:
+            s = localtime(self_overlap.start_date)
+            e = localtime(self_overlap.end_date)
+            raise OverlapError(
+                f"Chevauchement avec « {self_overlap.slot.task.name} » "
+                f"({s:%H:%M}-{e:%H:%M})."
+            )
+        assignment = Assignment.objects.create(
             user=user,
             slot=slot,
             start_date=start_date,
             end_date=end_date,
             status=Assignment.Status.CONFIRMED,
         )
+        _ensure_event_membership(user, slot.task.event)
+        return assignment
 
-    # Check overlap with other assignments
-    overlap = check_overlap(user, start_date, end_date, exclude_slot=slot)
+    # Check overlap with any other confirmed assignment of this user
+    # (including additional plages on the same slot).
+    overlap = check_overlap(user, start_date, end_date)
     if overlap:
         start = localtime(overlap.start_date)
         end = localtime(overlap.end_date)
@@ -86,13 +118,15 @@ def create_assignment(user, slot, start_date, end_date, force=False):
     # Determine status based on capacity
     status = Assignment.Status.BACKUP if slot.is_full else Assignment.Status.CONFIRMED
 
-    return Assignment.objects.create(
+    assignment = Assignment.objects.create(
         user=user,
         slot=slot,
         start_date=start_date,
         end_date=end_date,
         status=status,
     )
+    _ensure_event_membership(user, slot.task.event)
+    return assignment
 
 
 def update_assignment_status(assignment, new_status, force=False):

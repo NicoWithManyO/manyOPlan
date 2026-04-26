@@ -150,7 +150,6 @@ function AddUserToSlot({
 }: {
   slot: Slot; eventId: number; onDone: () => void;
 }) {
-  const { assignments } = useAssignmentStore();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<UserSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -158,7 +157,6 @@ function AddUserToSlot({
   const [startTime, setStartTime] = useState(toTimeInput(slot.start_date));
   const [endTime, setEndTime] = useState(toTimeInput(slot.end_date));
   const timeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const assignedUserIds = new Set(assignments.filter((a) => a.slot === slot.id).map((a) => a.user));
 
   const handleSearch = (q: string) => {
     setQuery(q);
@@ -168,7 +166,7 @@ function AddUserToSlot({
     timeout.current = setTimeout(async () => {
       try {
         const r = await searchUsers(q);
-        setResults(r.filter((u) => !assignedUserIds.has(u.id)));
+        setResults(r);
       } finally { setSearching(false); }
     }, 300);
   };
@@ -320,23 +318,102 @@ function EditAssignmentPopover({
   );
 }
 
+// --- Editable row for one of my plages on a slot ---
+function MyPlageRow({
+  assignment, slot, eventId, onDone,
+}: {
+  assignment: Assignment; slot: Slot; eventId: number; onDone: () => void;
+}) {
+  const { unregister, updateTimes } = useAssignmentStore();
+  const [startTime, setStartTime] = useState(toTimeInput(assignment.start_date));
+  const [endTime, setEndTime] = useState(toTimeInput(assignment.end_date));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const dirty =
+    startTime !== toTimeInput(assignment.start_date) ||
+    endTime !== toTimeInput(assignment.end_date);
+
+  const handleUpdate = async () => {
+    setError("");
+    const s = buildDateTime(slot.start_date, startTime);
+    const en = buildDateTime(slot.start_date, endTime);
+    if (s >= en) { setError("La fin doit être après le début"); return; }
+    setBusy(true);
+    try {
+      await updateTimes(eventId, assignment.id, s, en);
+      toast.success("Heures modifiées");
+      onDone();
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { detail?: string } } };
+      setError(apiErr.response?.data?.detail ?? "Erreur");
+    } finally { setBusy(false); }
+  };
+
+  const handleUnregister = async () => {
+    if (!confirm("Se désinscrire de cette plage ?")) return;
+    setBusy(true);
+    try {
+      await unregister(eventId, assignment.id);
+      toast.success("Désinscrit");
+      onDone();
+    } catch {
+      toast.error("Erreur");
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-2">
+      <div className="flex items-center gap-1.5">
+        <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+          min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
+          className="min-h-[32px] flex-1 rounded-md border border-gray-300 px-1.5 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
+        <span className="text-xs text-gray-400">→</span>
+        <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+          min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
+          className="min-h-[32px] flex-1 rounded-md border border-gray-300 px-1.5 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
+        {assignment.status === "backup" && (
+          <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">sec.</span>
+        )}
+        <button
+          type="button"
+          onClick={handleUnregister}
+          disabled={busy}
+          title="Se désinscrire de cette plage"
+          className="shrink-0 rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+        >
+          <LogOut className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
+      {dirty && (
+        <Button size="sm" className="mt-2 w-full" isLoading={busy} onClick={handleUpdate}>
+          Modifier mes heures
+        </Button>
+      )}
+    </div>
+  );
+}
+
 // --- Popover for registration ---
 function SlotPopoverContent({
   slot, task, eventId, onClose,
 }: {
   slot: Slot; task: Task; eventId: number; onClose: () => void;
 }) {
-  const { register: registerSlot, unregister, updateTimes, assignments } = useAssignmentStore();
+  const { register: registerSlot, assignments } = useAssignmentStore();
   const userId = useAuthStore((s) => s.user?.id);
-  const myAssignment = assignments.find((a) => a.slot === slot.id && a.user === userId);
-  const slotAssignments = assignments.filter((a) => a.slot === slot.id);
+  const byStart = (a: Assignment, b: Assignment) =>
+    a.start_date.localeCompare(b.start_date);
+  const slotAssignments = assignments
+    .filter((a) => a.slot === slot.id)
+    .slice()
+    .sort(byStart);
+  const myAssignments = slotAssignments.filter((a) => a.user === userId);
+  const otherAssignments = slotAssignments.filter((a) => a.user !== userId);
 
-  const [startTime, setStartTime] = useState(
-    myAssignment ? toTimeInput(myAssignment.start_date) : toTimeInput(slot.start_date),
-  );
-  const [endTime, setEndTime] = useState(
-    myAssignment ? toTimeInput(myAssignment.end_date) : toTimeInput(slot.end_date),
-  );
+  const [startTime, setStartTime] = useState(toTimeInput(slot.start_date));
+  const [endTime, setEndTime] = useState(toTimeInput(slot.end_date));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -357,15 +434,6 @@ function SlotPopoverContent({
     } finally { setBusy(false); }
   };
 
-  const handleUnregister = async () => {
-    if (!myAssignment) return;
-    if (!confirm("Se désinscrire de ce créneau ?")) return;
-    setBusy(true);
-    try { await unregister(eventId, myAssignment.id); toast.success("Désinscrit"); onClose(); }
-    catch { toast.error("Erreur"); }
-    finally { setBusy(false); }
-  };
-
   return (
     <div className="w-[300px]">
       <div className="mb-3 flex items-center justify-between">
@@ -378,13 +446,13 @@ function SlotPopoverContent({
         </span>
       </div>
 
-      {/* Inscrits sur ce créneau */}
-      {slotAssignments.length > 0 && (
+      {/* Autres inscrits sur ce créneau */}
+      {otherAssignments.length > 0 && (
         <div className="mb-3 space-y-1">
           <p className="text-[10px] font-medium text-gray-500 uppercase">Inscrits</p>
-          {slotAssignments.map((a) => (
+          {otherAssignments.map((a) => (
             <div key={a.id} className="flex items-center justify-between text-xs">
-              <span className={cn("truncate", a.is_placeholder ? "italic text-gray-400" : a.user === userId ? "font-semibold text-indigo-800" : "text-gray-700")}>
+              <span className={cn("truncate", a.is_placeholder ? "italic text-gray-400" : "text-gray-700")}>
                 {a.full_name}{a.is_placeholder ? " *" : ""}
               </span>
               <span className="shrink-0 text-gray-400 ml-1">{fmt(a.start_date)}-{fmt(a.end_date)}</span>
@@ -393,63 +461,43 @@ function SlotPopoverContent({
         </div>
       )}
 
-      {/* Mon inscription */}
-      {myAssignment ? (
-        <div className="space-y-3 border-t border-gray-200 pt-3">
+      {/* Mes plages sur ce créneau */}
+      {myAssignments.length > 0 && (
+        <div className="space-y-2 border-t border-gray-200 pt-3">
           <p className="text-xs text-gray-600">
-            Mon inscription{myAssignment.status === "backup" ? " (secours)" : ""}
+            {myAssignments.length === 1 ? "Mon inscription" : `Mes inscriptions (${myAssignments.length})`}
           </p>
-          <div className="flex items-center gap-2">
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-              min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
-              className="min-h-[32px] flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
-            <span className="text-xs text-gray-400">→</span>
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-              min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
-              className="min-h-[32px] flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
-          </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          {(startTime !== toTimeInput(myAssignment.start_date) || endTime !== toTimeInput(myAssignment.end_date)) && (
-            <Button size="sm" className="w-full" isLoading={busy} onClick={async () => {
-              setError("");
-              const s = buildDateTime(slot.start_date, startTime);
-              const en = buildDateTime(slot.start_date, endTime);
-              if (s >= en) { setError("La fin doit être après le début"); return; }
-              setBusy(true);
-              try {
-                await updateTimes(eventId, myAssignment.id, s, en);
-                toast.success("Heures modifiées");
-                onClose();
-              } catch (err: unknown) {
-                const apiErr = err as { response?: { data?: { detail?: string } } };
-                setError(apiErr.response?.data?.detail ?? "Erreur");
-              } finally { setBusy(false); }
-            }}>
-              Modifier mes heures
-            </Button>
-          )}
-          <Button variant="secondary" size="sm" className="w-full" onClick={handleUnregister} isLoading={busy}>
-            <LogOut className="mr-1.5 h-3.5 w-3.5" />Se désinscrire
-          </Button>
+          {myAssignments.map((mine) => (
+            <MyPlageRow
+              key={mine.id}
+              assignment={mine}
+              slot={slot}
+              eventId={eventId}
+              onDone={onClose}
+            />
+          ))}
         </div>
-      ) : (
-        <form onSubmit={handleRegister} className="space-y-3 border-t border-gray-200 pt-3">
-          <p className="text-xs text-gray-600">M'inscrire :</p>
-          <div className="flex items-center gap-2">
-            <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-              min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
-              className="min-h-[32px] flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
-            <span className="text-xs text-gray-400">→</span>
-            <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-              min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
-              className="min-h-[32px] flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
-          </div>
-          {error && <p className="text-xs text-red-600">{error}</p>}
-          <Button type="submit" size="sm" className="w-full" isLoading={busy}>
-            <UserPlus className="mr-1.5 h-3.5 w-3.5" />S'inscrire
-          </Button>
-        </form>
       )}
+
+      {/* Form: nouvelle inscription / plage supplémentaire */}
+      <form onSubmit={handleRegister} className="mt-3 space-y-2 border-t border-gray-200 pt-3">
+        <p className="text-xs text-gray-600">
+          {myAssignments.length === 0 ? "M'inscrire :" : "Ajouter une plage :"}
+        </p>
+        <div className="flex items-center gap-2">
+          <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+            min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
+            className="min-h-[32px] flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
+          <span className="text-xs text-gray-400">→</span>
+          <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+            min={toTimeInput(slot.start_date)} max={toTimeInput(slot.end_date)}
+            className="min-h-[32px] flex-1 rounded-lg border border-gray-300 px-2 py-1 text-xs focus:border-indigo-500 focus:outline-none" />
+        </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
+        <Button type="submit" size="sm" className="w-full" isLoading={busy}>
+          <UserPlus className="mr-1.5 h-3.5 w-3.5" />S'inscrire
+        </Button>
+      </form>
     </div>
   );
 }
@@ -468,7 +516,7 @@ function TimelineSlot({
   const topOffset = (slotStart.getHours() + slotStart.getMinutes() / 60 - startHour) * PX_PER_HOUR;
   const slotHeight = ((slotEnd.getTime() - slotStart.getTime()) / (1000 * 60 * 60)) * PX_PER_HOUR;
   const slotDurationMs = slotEnd.getTime() - slotStart.getTime();
-  const myAssignment = slotAssignments.find((a) => a.user === userId);
+  const hasMine = slotAssignments.some((a) => a.user === userId);
 
   const layout = computeOverlapLayout(slotAssignments);
 
@@ -480,7 +528,7 @@ function TimelineSlot({
           className={cn(
             "group absolute left-0 right-0 mx-0.5 rounded-md border bg-white cursor-pointer transition-all",
             open ? "border-indigo-500 ring-2 ring-indigo-500/30 shadow-md z-10"
-              : myAssignment ? "border-indigo-300 hover:shadow-sm"
+              : hasMine ? "border-indigo-300 hover:shadow-sm"
               : "border-gray-300 hover:shadow-sm hover:border-gray-400",
           )}
           style={{ top: `${topOffset}px`, height: `${slotHeight}px` }}
@@ -592,7 +640,7 @@ function TimelineSlot({
           sideOffset={4}
           align="start"
           collisionPadding={16}
-          className="z-50 rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
+          className="z-50 max-h-[85vh] overflow-y-auto rounded-xl border border-gray-200 bg-white p-4 shadow-xl"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <SlotPopoverContent slot={slot} task={task} eventId={eventId} onClose={() => setOpen(false)} />

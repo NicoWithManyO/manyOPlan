@@ -213,7 +213,7 @@ function SlotCard({
   isAdmin,
   isMember,
   slotAssignments,
-  myAssignment,
+  myAssignments,
   isDropTarget,
 }: {
   slot: Slot;
@@ -222,12 +222,12 @@ function SlotCard({
   isAdmin: boolean;
   isMember: boolean;
   slotAssignments: Assignment[];
-  myAssignment: Assignment | undefined;
+  myAssignments: Assignment[];
   isDropTarget: boolean;
 }) {
   const { deleteSlot } = useTaskStore();
   const { unregister } = useAssignmentStore();
-  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
   const [showRegisterForm, setShowRegisterForm] = useState(false);
 
   const { setNodeRef, isOver } = useDroppable({
@@ -240,17 +240,19 @@ function SlotCard({
   const fillPercent = capacity ? Math.min((confirmed / capacity) * 100, 100) : 0;
   const isFull = capacity !== null && confirmed >= capacity;
 
-  const handleUnregister = async () => {
-    if (!myAssignment) return;
-    if (!confirm("Se désinscrire de ce créneau ?")) return;
-    setBusy(true);
+  const hasMine = myAssignments.length > 0;
+  const hasMineConfirmed = myAssignments.some((a) => a.status === "confirmed");
+
+  const handleUnregister = async (mine: Assignment) => {
+    if (!confirm("Se désinscrire de cette plage ?")) return;
+    setBusyId(mine.id);
     try {
-      await unregister(eventId, myAssignment.id);
+      await unregister(eventId, mine.id);
       toast.success("Désinscrit");
     } catch {
       toast.error("Erreur");
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   };
 
@@ -274,8 +276,8 @@ function SlotCard({
           : isDropTarget
             ? "border-dashed border-indigo-300"
             : "",
-        !isDropTarget && myAssignment
-          ? myAssignment.status === "confirmed"
+        !isDropTarget && hasMine
+          ? hasMineConfirmed
             ? "border-indigo-300 bg-indigo-50"
             : "border-amber-300 bg-amber-50"
           : !isDropTarget && isFull
@@ -344,23 +346,26 @@ function SlotCard({
 
       {/* Action buttons */}
       {isMember && (
-        <div className="mt-2">
-          {myAssignment ? (
+        <div className="mt-2 space-y-1">
+          {myAssignments.map((mine) => (
             <button
-              onClick={handleUnregister}
-              disabled={busy}
+              key={mine.id}
+              onClick={() => handleUnregister(mine)}
+              disabled={busyId === mine.id}
               className={cn(
                 "flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition",
                 "min-h-[40px]",
-                myAssignment.status === "confirmed"
+                mine.status === "confirmed"
                   ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200"
                   : "bg-amber-100 text-amber-700 hover:bg-amber-200",
               )}
             >
               <LogOut className="h-3.5 w-3.5" />
-              Se désinscrire ({formatTime(myAssignment.start_date)}-{formatTime(myAssignment.end_date)})
+              Se désinscrire ({formatTime(mine.start_date)}-{formatTime(mine.end_date)})
             </button>
-          ) : showRegisterForm ? (
+          ))}
+
+          {showRegisterForm ? (
             <RegisterForm
               slot={slot}
               eventId={eventId}
@@ -372,13 +377,15 @@ function SlotCard({
               className={cn(
                 "flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition",
                 "min-h-[40px]",
-                isFull
-                  ? "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
-                  : "bg-indigo-600 text-white hover:bg-indigo-700",
+                hasMine
+                  ? "border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50"
+                  : isFull
+                    ? "border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                    : "bg-indigo-600 text-white hover:bg-indigo-700",
               )}
             >
               <UserPlus className="h-3.5 w-3.5" />
-              {isFull ? "S'inscrire (secours)" : "S'inscrire"}
+              {hasMine ? "Ajouter une plage" : isFull ? "S'inscrire (secours)" : "S'inscrire"}
             </button>
           )}
         </div>
@@ -424,9 +431,9 @@ function TaskColumn({
       <div className="space-y-2">
         {task.slots.map((slot) => {
           const slotAssignments = assignments.filter((a) => a.slot === slot.id);
-          const myAssignment = userId
-            ? slotAssignments.find((a) => a.user === userId)
-            : undefined;
+          const myAssignments = userId
+            ? slotAssignments.filter((a) => a.user === userId)
+            : [];
           return (
             <SlotCard
               key={slot.id}
@@ -436,7 +443,7 @@ function TaskColumn({
               isAdmin={isAdmin}
               isMember={isMember}
               slotAssignments={slotAssignments}
-              myAssignment={myAssignment}
+              myAssignments={myAssignments}
               isDropTarget={isDragging}
             />
           );

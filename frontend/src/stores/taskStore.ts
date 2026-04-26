@@ -30,6 +30,12 @@ interface TaskState {
     taskId: number,
     slotId: number,
   ) => Promise<void>;
+  updateSlot: (
+    eventId: number,
+    taskId: number,
+    slotId: number,
+    data: Partial<SlotCreateData>,
+  ) => Promise<void>;
   clear: () => void;
 }
 
@@ -95,6 +101,20 @@ export const useTaskStore = create<TaskState>((set, get) => ({
           : t,
       ),
     }));
+  },
+
+  updateSlot: async (eventId, taskId, slotId, data) => {
+    const updated = await tasksApi.updateSlot(eventId, taskId, slotId, data);
+    set((s) => ({
+      tasks: s.tasks.map((t) =>
+        t.id === taskId
+          ? { ...t, slots: t.slots.map((sl) => (sl.id === slotId ? updated : sl)) }
+          : t,
+      ),
+    }));
+    // Backend may have shifted assignments tied to this slot — refresh them.
+    const { useAssignmentStore } = await import("./assignmentStore");
+    await useAssignmentStore.getState().fetchAssignments(eventId);
   },
 
   clear: () => set({ tasks: [], isLoading: false }),
