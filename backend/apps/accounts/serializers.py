@@ -49,7 +49,6 @@ class RegisterSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = (
-            "username",
             "email",
             "password",
             "password_confirm",
@@ -61,8 +60,15 @@ class RegisterSerializer(serializers.ModelSerializer):
             "invite_code",
         )
         extra_kwargs = {
+            "email": {"required": True, "allow_blank": False},
             "nickname": {"required": False, "allow_blank": True},
         }
+
+    def validate_email(self, value):
+        normalized = value.strip().lower()
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError("Un compte avec cet email existe déjà.")
+        return normalized
 
     def validate(self, attrs):
         if attrs["password"] != attrs["password_confirm"]:
@@ -96,6 +102,8 @@ class RegisterSerializer(serializers.ModelSerializer):
         action = validated_data.pop("action", None)
         org_data = validated_data.pop("org", None)
         invite_code = validated_data.pop("invite_code", None)
+
+        validated_data["username"] = validated_data["email"]
 
         with transaction.atomic():
             user = User.objects.create_user(**validated_data)

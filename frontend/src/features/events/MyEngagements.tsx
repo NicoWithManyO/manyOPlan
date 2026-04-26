@@ -1,62 +1,96 @@
 import { CalendarCheck, ChevronDown, ChevronUp } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMyEngagements } from "../../api/assignments";
 import type { MyEngagement } from "../../types/models";
 import { cn } from "../../utils/cn";
 
-const INITIAL_VISIBLE = 5;
+const INITIAL_VISIBLE = 6;
 
-function formatRange(start: string, end: string) {
-  const s = new Date(start);
-  const e = new Date(end);
-  const sameDay = s.toDateString() === e.toDateString();
-  const dateFmt = new Intl.DateTimeFormat("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-  const timeFmt = new Intl.DateTimeFormat("fr-FR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  if (sameDay) {
-    return `${dateFmt.format(s)} · ${timeFmt.format(s)} – ${timeFmt.format(e)}`;
-  }
-  return `${dateFmt.format(s)} ${timeFmt.format(s)} → ${dateFmt.format(e)} ${timeFmt.format(e)}`;
+const timeFmt = new Intl.DateTimeFormat("fr-FR", {
+  hour: "2-digit",
+  minute: "2-digit",
+});
+const dayHeaderFmt = new Intl.DateTimeFormat("fr-FR", {
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+
+function dayKey(d: Date) {
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
 
-function EngagementCard({ engagement }: { engagement: MyEngagement }) {
+function dayLabel(d: Date) {
+  const today = new Date();
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dayKey(d) === dayKey(today)) return "Aujourd'hui";
+  if (dayKey(d) === dayKey(tomorrow)) return "Demain";
+  // Capitalize first letter (Intl gives lowercase weekday in fr)
+  const raw = dayHeaderFmt.format(d);
+  return raw.charAt(0).toUpperCase() + raw.slice(1);
+}
+
+function timeRange(start: Date, end: Date) {
+  const sameDay = dayKey(start) === dayKey(end);
+  if (sameDay) {
+    return `${timeFmt.format(start)} – ${timeFmt.format(end)}`;
+  }
+  // Multi-day slot: show end with short date hint
+  const endShort = new Intl.DateTimeFormat("fr-FR", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(end);
+  return `${timeFmt.format(start)} → ${endShort}`;
+}
+
+function EngagementRow({ engagement }: { engagement: MyEngagement }) {
   const isBackup = engagement.status === "backup";
+  const start = new Date(engagement.start_date);
+  const end = new Date(engagement.end_date);
   return (
     <Link
       to={`/events/${engagement.event_id}`}
-      className="block rounded-lg border border-gray-200 bg-white p-3 transition hover:border-indigo-300 hover:shadow-sm"
+      className="group flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-gray-50"
     >
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="truncate text-sm font-semibold text-gray-900">
-          {engagement.event_name}
-        </span>
-        <span
-          className={cn(
-            "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
-            isBackup
-              ? "bg-amber-100 text-amber-700"
-              : "bg-emerald-100 text-emerald-700",
-          )}
-        >
-          {isBackup ? "Secours" : "Confirmé"}
-        </span>
-      </div>
-      <div className="mb-1 text-sm text-gray-700">{engagement.task_name}</div>
-      <div className="text-xs text-gray-500">
-        {formatRange(engagement.start_date, engagement.end_date)}
-      </div>
-      <div className="mt-2 text-[11px] uppercase tracking-wide text-gray-400">
-        {engagement.organization_name}
-      </div>
+      <span className="w-28 shrink-0 font-mono text-xs tabular-nums text-gray-600">
+        {timeRange(start, end)}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-sm text-gray-900">
+        <span className="font-medium">{engagement.task_name}</span>
+        <span className="text-gray-400"> · </span>
+        <span className="text-gray-600">{engagement.event_name}</span>
+      </span>
+      <span
+        className={cn(
+          "shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium",
+          isBackup
+            ? "bg-amber-100 text-amber-700"
+            : "bg-emerald-100 text-emerald-700",
+        )}
+      >
+        {isBackup ? "Secours" : "Confirmé"}
+      </span>
     </Link>
   );
+}
+
+function groupByDay(items: MyEngagement[]) {
+  const groups = new Map<string, { date: Date; items: MyEngagement[] }>();
+  for (const it of items) {
+    const d = new Date(it.start_date);
+    const key = dayKey(d);
+    const group = groups.get(key);
+    if (group) {
+      group.items.push(it);
+    } else {
+      groups.set(key, { date: d, items: [it] });
+    }
+  }
+  return Array.from(groups.values());
 }
 
 export function MyEngagements() {
@@ -77,10 +111,16 @@ export function MyEngagements() {
     };
   }, []);
 
+  const visibleGroups = useMemo(() => {
+    if (!items) return [];
+    const slice = expanded ? items : items.slice(0, INITIAL_VISIBLE);
+    return groupByDay(slice);
+  }, [items, expanded]);
+
   if (!items || items.length === 0) return null;
 
-  const visible = expanded ? items : items.slice(0, INITIAL_VISIBLE);
   const hasMore = items.length > INITIAL_VISIBLE;
+  const hiddenCount = items.length - INITIAL_VISIBLE;
 
   return (
     <section className="mb-6 rounded-xl bg-white p-4 ring-1 ring-gray-200">
@@ -91,11 +131,22 @@ export function MyEngagements() {
           {items.length}
         </span>
       </h3>
-      <div className="grid gap-2 sm:grid-cols-2">
-        {visible.map((eng) => (
-          <EngagementCard key={eng.id} engagement={eng} />
+
+      <div className="space-y-3">
+        {visibleGroups.map((group) => (
+          <div key={dayKey(group.date)}>
+            <div className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              {dayLabel(group.date)}
+            </div>
+            <div className="divide-y divide-gray-100">
+              {group.items.map((eng) => (
+                <EngagementRow key={eng.id} engagement={eng} />
+              ))}
+            </div>
+          </div>
         ))}
       </div>
+
       {hasMore && (
         <button
           type="button"
@@ -110,7 +161,7 @@ export function MyEngagements() {
           ) : (
             <>
               <ChevronDown className="h-3.5 w-3.5" />
-              Voir les {items.length - INITIAL_VISIBLE} autres
+              Voir les {hiddenCount} autres
             </>
           )}
         </button>

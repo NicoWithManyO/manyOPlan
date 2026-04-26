@@ -21,7 +21,6 @@ type Mode = "create_org" | "join_org";
 
 const baseSchema = z
   .object({
-    username: z.string().min(3, "3 caractères minimum").max(150),
     email: z.string().email("Email invalide"),
     first_name: z.string().min(1, "Prénom requis"),
     last_name: z.string().min(1, "Nom requis"),
@@ -165,7 +164,6 @@ function CreateOrgForm({
   const onSubmit = async (data: CreateFormData) => {
     try {
       const response = await submit({
-        username: data.username,
         email: data.email,
         password: data.password,
         password_confirm: data.password_confirm,
@@ -245,7 +243,6 @@ function JoinOrgForm({
   const onSubmit = async (data: JoinFormData) => {
     try {
       const response = await submit({
-        username: data.username,
         email: data.email,
         password: data.password,
         password_confirm: data.password_confirm,
@@ -288,7 +285,6 @@ type PersonalFormFields = {
   first_name: string;
   last_name: string;
   nickname?: string;
-  username: string;
   email: string;
   password: string;
   password_confirm: string;
@@ -333,13 +329,6 @@ function PersonalFields<T extends PersonalFormFields>({
           Affiché dans les plannings. Vide → « Prénom L. ».
         </p>
       </div>
-      <Input
-        id="username"
-        label="Nom d'utilisateur"
-        autoComplete="username"
-        error={errs.username?.message}
-        {...register("username" as Path<T>)}
-      />
       <Input
         id="email"
         label="Email"

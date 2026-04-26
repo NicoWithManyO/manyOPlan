@@ -7,7 +7,7 @@ import { Input } from "../../components/ui/Input";
 import { useAuthStore } from "../../stores/authStore";
 
 const schema = z.object({
-  username: z.string().min(1, "Nom d'utilisateur requis"),
+  username: z.string().min(1, "Email requis"),
   password: z.string().min(1, "Mot de passe requis"),
 });
 
@@ -45,8 +45,9 @@ export function LoginPage() {
         )}
         <Input
           id="username"
-          label="Nom d'utilisateur"
-          autoComplete="username"
+          label="Email"
+          type="email"
+          autoComplete="email"
           error={errors.username?.message}
           {...register("username")}
         />
