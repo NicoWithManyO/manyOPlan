@@ -1,11 +1,12 @@
 import * as Popover from "@radix-ui/react-popover";
-import { ArrowRightLeft, ChevronLeft, ChevronRight, LogOut, Maximize2, Minimize2, Printer, Search, Trash2, UserPlus, Users, X } from "lucide-react";
+import { ArrowRightLeft, Calendar, CalendarDays, ChevronLeft, ChevronRight, LogOut, Maximize2, Minimize2, Printer, Search, Trash2, UserPlus, Users, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/Button";
 import { quickCreateVolunteer, searchUsers, type UserSearchResult } from "../../api/users";
 import { useAssignmentStore } from "../../stores/assignmentStore";
 import { useAuthStore } from "../../stores/authStore";
+import { useEventStore } from "../../stores/eventStore";
 import { useTaskStore } from "../../stores/taskStore";
 import type { Assignment, Slot, Task } from "../../types/models";
 import { cn } from "../../utils/cn";
@@ -47,12 +48,27 @@ function buildDateTime(slotDateStr: string, time: string) {
   return d.toISOString();
 }
 
-function getEventDays(tasks: Task[]): Date[] {
+function getEventDays(
+  tasks: Task[],
+  range?: { start: string; end: string },
+): Date[] {
   const daySet = new Set<string>();
+  const addDay = (d: Date) => {
+    daySet.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+  };
   for (const task of tasks) {
     for (const slot of task.slots) {
-      const d = new Date(slot.start_date);
-      daySet.add(`${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`);
+      addDay(new Date(slot.start_date));
+    }
+  }
+  if (range) {
+    const start = new Date(range.start);
+    const end = new Date(range.end);
+    const cur = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const last = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+    while (cur <= last) {
+      addDay(cur);
+      cur.setDate(cur.getDate() + 1);
     }
   }
   return Array.from(daySet)
@@ -405,12 +421,10 @@ function SlotPopoverContent({
   const userId = useAuthStore((s) => s.user?.id);
   const byStart = (a: Assignment, b: Assignment) =>
     a.start_date.localeCompare(b.start_date);
-  const slotAssignments = assignments
-    .filter((a) => a.slot === slot.id)
+  const myAssignments = assignments
+    .filter((a) => a.slot === slot.id && a.user === userId)
     .slice()
     .sort(byStart);
-  const myAssignments = slotAssignments.filter((a) => a.user === userId);
-  const otherAssignments = slotAssignments.filter((a) => a.user !== userId);
 
   const [startTime, setStartTime] = useState(toTimeInput(slot.start_date));
   const [endTime, setEndTime] = useState(toTimeInput(slot.end_date));
@@ -445,21 +459,6 @@ function SlotPopoverContent({
           <X className="h-4 w-4" />
         </span>
       </div>
-
-      {/* Autres inscrits sur ce créneau */}
-      {otherAssignments.length > 0 && (
-        <div className="mb-3 space-y-1">
-          <p className="text-[10px] font-medium text-gray-500 uppercase">Inscrits</p>
-          {otherAssignments.map((a) => (
-            <div key={a.id} className="flex items-center justify-between text-xs">
-              <span className={cn("truncate", a.is_placeholder ? "italic text-gray-400" : "text-gray-700")}>
-                {a.full_name}{a.is_placeholder ? " *" : ""}
-              </span>
-              <span className="shrink-0 text-gray-400 ml-1">{fmt(a.start_date)}-{fmt(a.end_date)}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Mes plages sur ce créneau */}
       {myAssignments.length > 0 && (
@@ -591,12 +590,10 @@ function TimelineSlot({
                   )}>
                     {a.full_name}{placeholder ? " *" : ""}
                   </p>
-                  {totalCols < 3 && (
-                    <div className="text-[8px] text-gray-400 leading-tight shrink-0">
-                      <p>{fmt(a.start_date)}</p>
-                      <p>{fmt(a.end_date)}</p>
-                    </div>
-                  )}
+                  <div className="text-[8px] text-gray-400 leading-tight shrink-0">
+                    <p>{fmt(a.start_date)}</p>
+                    <p>{fmt(a.end_date)}</p>
+                  </div>
                 </div>
               );
 
@@ -865,6 +862,14 @@ function TransposedDayColumn({
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
   const { fetchAssignments } = useAssignmentStore();
 
+  if (daySlots.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 text-center text-xs text-gray-400">
+        Aucun créneau ce jour-là.
+      </div>
+    );
+  }
+
   return (
     <div className="w-full">
       {/* Hours header — sticky */}
@@ -1010,6 +1015,14 @@ function DayColumn({
   const taskIds = [...new Set(daySlots.map((ds) => ds.task.id))];
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
 
+  if (daySlots.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50/50 px-4 py-8 text-center text-xs text-gray-400">
+        Aucun créneau ce jour-là.
+      </div>
+    );
+  }
+
   return (
     <div className="w-full" style={{ minWidth: `${taskIds.length * TASK_COL_MIN_WIDTH + 50}px` }}>
       {/* Task name headers — sticky */}
@@ -1066,11 +1079,17 @@ function DayColumn({
 export function PlanningView({ eventId, isAdmin = false }: { eventId: number; isAdmin?: boolean }) {
   const { tasks, isLoading } = useTaskStore();
   const { assignments } = useAssignmentStore();
+  const currentEvent = useEventStore((s) => s.currentEvent);
   const user = useAuthStore((s) => s.user);
-  const days = useMemo(() => getEventDays(tasks), [tasks]);
+  const eventRange = currentEvent
+    ? { start: currentEvent.start_date, end: currentEvent.end_date }
+    : undefined;
+  const days = useMemo(() => getEventDays(tasks, eventRange), [tasks, eventRange]);
   const [dayIndex, setDayIndex] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
   const [transposed, setTransposed] = useState(false);
+  const [viewMode, setViewMode] = useState<"day" | "all">("day");
+  const showAllDays = viewMode === "all" && days.length > 1;
 
   if (isLoading && tasks.length === 0)
     return <div className="h-64 animate-pulse rounded-lg bg-gray-200" />;
@@ -1087,24 +1106,43 @@ export function PlanningView({ eventId, isAdmin = false }: { eventId: number; is
   const content = (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        {/* Navigation jour — groupée */}
-        <div className="flex items-center gap-1">
-          <button onClick={() => setDayIndex((i) => Math.max(0, i - 1))} disabled={dayIndex === 0}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
+        {/* Navigation jour — masquée en mode "tout" */}
+        {showAllDays ? (
           <span className="text-sm font-medium text-gray-700 capitalize">
-            {formatDayHeader(currentDay)}
-            <span className="ml-1.5 text-xs text-gray-400">{dayIndex + 1}/{days.length}</span>
+            Tous les jours
+            <span className="ml-1.5 text-xs text-gray-400">({days.length})</span>
           </span>
-          <button onClick={() => setDayIndex((i) => Math.min(days.length - 1, i + 1))} disabled={dayIndex === days.length - 1}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
+        ) : (
+          <div className="flex items-center gap-1">
+            <button onClick={() => setDayIndex((i) => Math.max(0, i - 1))} disabled={dayIndex === 0}
+              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm font-medium text-gray-700 capitalize">
+              {formatDayHeader(currentDay)}
+              <span className="ml-1.5 text-xs text-gray-400">{dayIndex + 1}/{days.length}</span>
+            </span>
+            <button onClick={() => setDayIndex((i) => Math.min(days.length - 1, i + 1))} disabled={dayIndex === days.length - 1}
+              className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 disabled:opacity-30">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex items-center gap-1">
+          {days.length > 1 && (
+            <button
+              onClick={() => setViewMode((m) => (m === "day" ? "all" : "day"))}
+              title={viewMode === "all" ? "Vue jour par jour" : "Voir tous les jours"}
+              className={cn(
+                "rounded-lg p-2 hover:bg-gray-100",
+                viewMode === "all" ? "text-indigo-600 bg-indigo-50" : "text-gray-400 hover:text-gray-600",
+              )}
+            >
+              {viewMode === "all" ? <Calendar className="h-4 w-4" /> : <CalendarDays className="h-4 w-4" />}
+            </button>
+          )}
           <button onClick={() => toast.info("Impression à venir")} title="Imprimer"
             className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600">
             <Printer className="h-4 w-4" />
@@ -1122,27 +1160,31 @@ export function PlanningView({ eventId, isAdmin = false }: { eventId: number; is
 
       <div className="overflow-auto pb-4 -mx-4 px-4" style={{ maxHeight: "calc(100vh - 120px)" }}>
         {transposed ? (
-          <>
-            <div className="md:hidden">
-              <TransposedDayColumn day={currentDay} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
-            </div>
-            <div className="hidden md:flex flex-col gap-6">
+          showAllDays ? (
+            <div className="flex flex-col gap-6">
               {days.map((day) => (
-                <TransposedDayColumn key={day.toISOString()} day={day} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
+                <div key={day.toISOString()}>
+                  <p className="mb-2 text-xs font-semibold text-gray-700 capitalize">{formatDayHeader(day)}</p>
+                  <TransposedDayColumn day={day} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
+                </div>
               ))}
             </div>
-          </>
+          ) : (
+            <TransposedDayColumn day={currentDay} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
+          )
+        ) : showAllDays ? (
+          <div className="flex flex-col gap-6 pl-14">
+            {days.map((day) => (
+              <div key={day.toISOString()}>
+                <p className="mb-2 text-xs font-semibold text-gray-700 capitalize">{formatDayHeader(day)}</p>
+                <DayColumn day={day} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
+              </div>
+            ))}
+          </div>
         ) : (
-          <>
-            <div className="md:hidden pl-14">
-              <DayColumn day={currentDay} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
-            </div>
-            <div className="hidden md:flex gap-6 pl-14">
-              {days.map((day) => (
-                <DayColumn key={day.toISOString()} day={day} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
-              ))}
-            </div>
-          </>
+          <div className="pl-14">
+            <DayColumn day={currentDay} tasks={tasks} assignments={assignments} userId={user?.id} eventId={eventId} isAdmin={isAdmin} />
+          </div>
         )}
       </div>
     </div>
