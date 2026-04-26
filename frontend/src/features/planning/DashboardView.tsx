@@ -123,8 +123,8 @@ export function DashboardView({ eventId }: { eventId: number }) {
               <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
               <Tooltip
                 contentStyle={{ fontSize: 12 }}
-                formatter={(value: number, name: string) => [
-                  value,
+                formatter={(value, name) => [
+                  value ?? 0,
                   name === "confirmed" ? "Inscrits" : "Capacité",
                 ]}
               />
