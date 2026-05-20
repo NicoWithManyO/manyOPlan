@@ -12,7 +12,7 @@ from apps.organizations.models import Organization, OrganizationMembership
 
 from .models import Event, EventInvitation, EventMembership
 
-INVITATION_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{4,60}$")
+INVITATION_TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{2,60}$")
 
 User = get_user_model()
 
@@ -144,7 +144,7 @@ class EventInvitationSerializer(serializers.ModelSerializer):
             return ""
         if not INVITATION_TOKEN_RE.match(value):
             raise serializers.ValidationError(
-                "4 à 60 caractères : lettres, chiffres, tirets, underscores."
+                "2 à 60 caractères : lettres, chiffres, tirets, underscores."
             )
         if EventInvitation.objects.filter(token=value).exists():
             raise serializers.ValidationError("Ce lien existe déjà, choisis-en un autre.")

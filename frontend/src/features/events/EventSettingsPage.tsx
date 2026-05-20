@@ -79,7 +79,7 @@ function statusLabel(inv: EventInvitation) {
   return { label: "Active", className: "bg-emerald-100 text-emerald-700" };
 }
 
-const SLUG_RE = /^[A-Za-z0-9_-]{4,60}$/;
+const SLUG_RE = /^[A-Za-z0-9_-]{2,60}$/;
 
 function InvitationsManagement({ eventId }: { eventId: number }) {
   const [invitations, setInvitations] = useState<EventInvitation[]>([]);
@@ -113,7 +113,7 @@ function InvitationsManagement({ eventId }: { eventId: number }) {
     setSlugError(null);
     const slug = customSlug.trim();
     if (slug && !SLUG_RE.test(slug)) {
-      setSlugError("4-60 caractères : lettres, chiffres, tirets, underscores.");
+      setSlugError("2-60 caractères : lettres, chiffres, tirets, underscores.");
       return;
     }
     setCreating(true);
