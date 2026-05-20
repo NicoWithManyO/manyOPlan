@@ -201,8 +201,6 @@ class EventMembershipViewSet(viewsets.ModelViewSet):
 
 
 class EventInvitationListCreateView(generics.ListCreateAPIView):
-    """Admin: list and create invitations for an event."""
-
     serializer_class = EventInvitationSerializer
     permission_classes = (permissions.IsAuthenticated, IsEventAdmin)
     pagination_class = None
@@ -211,13 +209,10 @@ class EventInvitationListCreateView(generics.ListCreateAPIView):
         return EventInvitation.objects.filter(event_id=self.kwargs["event_pk"])
 
     def perform_create(self, serializer):
-        event = get_object_or_404(Event, pk=self.kwargs["event_pk"])
-        serializer.save(event=event, created_by=self.request.user)
+        serializer.save(event_id=self.kwargs["event_pk"], created_by=self.request.user)
 
 
 class EventInvitationDetailView(generics.DestroyAPIView):
-    """Admin: delete an invitation."""
-
     serializer_class = EventInvitationSerializer
     permission_classes = (permissions.IsAuthenticated, IsEventAdmin)
 
@@ -226,8 +221,6 @@ class EventInvitationDetailView(generics.DestroyAPIView):
 
 
 class InvitationPreviewView(APIView):
-    """Public: get a lightweight preview of an invitation by token."""
-
     permission_classes = (permissions.AllowAny,)
 
     def get(self, request, token):
@@ -266,7 +259,6 @@ class InvitationAcceptView(APIView):
             signup_data = serializer.validated_data
 
         with transaction.atomic():
-            # Re-fetch under transaction & validate again (cheap)
             invitation = (
                 EventInvitation.objects.select_for_update()
                 .select_related("event", "event__organization")

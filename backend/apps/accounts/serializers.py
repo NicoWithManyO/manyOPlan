@@ -13,6 +13,24 @@ from apps.organizations.serializers import (
 User = get_user_model()
 
 
+def normalize_and_check_unique_email(value):
+    """Lowercase the email and reject if a user already exists with it.
+
+    Shared between RegisterSerializer and InvitationAcceptSerializer.
+    """
+    normalized = value.strip().lower()
+    if User.objects.filter(username__iexact=normalized).exists():
+        raise serializers.ValidationError("Un compte avec cet email existe déjà.")
+    return normalized
+
+
+def check_password_match(password, password_confirm):
+    if password != password_confirm:
+        raise serializers.ValidationError(
+            {"password_confirm": "Les mots de passe ne correspondent pas."}
+        )
+
+
 class UserSerializer(serializers.ModelSerializer):
     is_staff = serializers.BooleanField(read_only=True)
     display_name = serializers.CharField(read_only=True)
@@ -65,16 +83,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         }
 
     def validate_email(self, value):
-        normalized = value.strip().lower()
-        if User.objects.filter(username__iexact=normalized).exists():
-            raise serializers.ValidationError("Un compte avec cet email existe déjà.")
-        return normalized
+        return normalize_and_check_unique_email(value)
 
     def validate(self, attrs):
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError(
-                {"password_confirm": "Les mots de passe ne correspondent pas."}
-            )
+        check_password_match(attrs["password"], attrs["password_confirm"])
         action = attrs.get("action")
         if action == "create_org" and not attrs.get("org"):
             raise serializers.ValidationError(

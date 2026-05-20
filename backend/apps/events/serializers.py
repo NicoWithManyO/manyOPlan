@@ -4,6 +4,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from apps.accounts.serializers import (
+    check_password_match,
+    normalize_and_check_unique_email,
+)
 from apps.organizations.models import Organization, OrganizationMembership
 
 from .models import Event, EventInvitation, EventMembership
@@ -116,8 +120,8 @@ class JoinEventSerializer(serializers.Serializer):
 
 class EventInvitationSerializer(serializers.ModelSerializer):
     token = serializers.CharField(required=False, allow_blank=True, max_length=60)
-    is_valid = serializers.SerializerMethodField()
-    invalid_reason = serializers.SerializerMethodField()
+    is_valid = serializers.BooleanField(read_only=True)
+    invalid_reason = serializers.CharField(read_only=True, allow_null=True)
 
     class Meta:
         model = EventInvitation
@@ -137,7 +141,7 @@ class EventInvitationSerializer(serializers.ModelSerializer):
     def validate_token(self, value):
         value = (value or "").strip()
         if not value:
-            return ""  # empty -> model.save() will auto-generate
+            return ""
         if not INVITATION_TOKEN_RE.match(value):
             raise serializers.ValidationError(
                 "4 à 60 caractères : lettres, chiffres, tirets, underscores."
@@ -146,13 +150,12 @@ class EventInvitationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Ce lien existe déjà, choisis-en un autre.")
         return value
 
-    def get_is_valid(self, obj):
-        ok, _ = obj.is_valid()
-        return ok
-
-    def get_invalid_reason(self, obj):
-        _, reason = obj.is_valid()
-        return reason
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        ok, reason = instance.is_valid()
+        data["is_valid"] = ok
+        data["invalid_reason"] = reason
+        return data
 
 
 class EventInvitationPreviewSerializer(serializers.Serializer):
@@ -160,16 +163,15 @@ class EventInvitationPreviewSerializer(serializers.Serializer):
     organization_name = serializers.CharField(source="event.organization.name", read_only=True)
     event_start_date = serializers.DateTimeField(source="event.start_date", read_only=True)
     event_end_date = serializers.DateTimeField(source="event.end_date", read_only=True)
-    is_valid = serializers.SerializerMethodField()
-    invalid_reason = serializers.SerializerMethodField()
+    is_valid = serializers.BooleanField(read_only=True)
+    invalid_reason = serializers.CharField(read_only=True, allow_null=True)
 
-    def get_is_valid(self, obj):
-        ok, _ = obj.is_valid()
-        return ok
-
-    def get_invalid_reason(self, obj):
-        _, reason = obj.is_valid()
-        return reason
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        ok, reason = instance.is_valid()
+        data["is_valid"] = ok
+        data["invalid_reason"] = reason
+        return data
 
 
 class InvitationAcceptSerializer(serializers.Serializer):
@@ -186,14 +188,8 @@ class InvitationAcceptSerializer(serializers.Serializer):
     nickname = serializers.CharField(max_length=60, required=False, allow_blank=True)
 
     def validate_email(self, value):
-        normalized = value.strip().lower()
-        if User.objects.filter(username__iexact=normalized).exists():
-            raise serializers.ValidationError("Un compte avec cet email existe déjà.")
-        return normalized
+        return normalize_and_check_unique_email(value)
 
     def validate(self, attrs):
-        if attrs["password"] != attrs["password_confirm"]:
-            raise serializers.ValidationError(
-                {"password_confirm": "Les mots de passe ne correspondent pas."}
-            )
+        check_password_match(attrs["password"], attrs["password_confirm"])
         return attrs
