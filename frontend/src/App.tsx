@@ -30,7 +30,6 @@ export default function App() {
     <>
       <Toaster position="bottom-center" richColors />
       <Routes>
-        {/* Public invitation route (accessible logged in or out) */}
         <Route path="/invite/:token" element={<InvitationPage />} />
 
         {/* Auth routes */}

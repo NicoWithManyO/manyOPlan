@@ -55,7 +55,6 @@ function toLocalDatetime(isoStr: string) {
   return local.toISOString().slice(0, 16);
 }
 
-// --- Invitations section ---
 function formatDateShort(iso: string | null) {
   if (!iso) return null;
   return new Date(iso).toLocaleDateString("fr-FR", {
@@ -670,7 +669,6 @@ export function EventSettingsPage() {
       {/* Members & Admins */}
       <MemberManagement eventId={eventId} />
 
-      {/* Invitations */}
       <InvitationsManagement eventId={eventId} />
 
       {/* Danger zone */}

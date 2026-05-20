@@ -1,14 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Sparkles, UserPlus } from "lucide-react";
 import { useState } from "react";
-import {
-  useForm,
-  type FieldErrors,
-  type FieldValues,
-  type Path,
-  type UseFormRegister,
-  type UseFormSetError,
-} from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "../../components/ui/Button";
@@ -16,6 +9,8 @@ import { Input } from "../../components/ui/Input";
 import { useAuthStore } from "../../stores/authStore";
 import { useOrgStore } from "../../stores/orgStore";
 import { cn } from "../../utils/cn";
+import { handleApiError } from "../../utils/handleApiError";
+import { PersonalFields } from "./PersonalFields";
 
 type Mode = "create_org" | "join_org";
 
@@ -178,7 +173,10 @@ function CreateOrgForm({
       });
       if (response.organization) onSuccess(response.organization);
     } catch (err: unknown) {
-      handleApiError(err, setError);
+      handleApiError(err, setError, {
+        fallbackMessage: "Erreur lors de l'inscription",
+        nestedFieldMap: { "org.invite_code": "invite_code" },
+      });
     }
   };
 
@@ -254,7 +252,10 @@ function JoinOrgForm({
       });
       if (response.organization) onSuccess(response.organization);
     } catch (err: unknown) {
-      handleApiError(err, setError);
+      handleApiError(err, setError, {
+        fallbackMessage: "Erreur lors de l'inscription",
+        nestedFieldMap: { "org.invite_code": "invite_code" },
+      });
     }
   };
 
@@ -281,105 +282,3 @@ function JoinOrgForm({
   );
 }
 
-type PersonalFormFields = {
-  first_name: string;
-  last_name: string;
-  nickname?: string;
-  email: string;
-  password: string;
-  password_confirm: string;
-};
-
-function PersonalFields<T extends PersonalFormFields>({
-  register,
-  errors,
-}: {
-  register: UseFormRegister<T>;
-  errors: FieldErrors<T>;
-}) {
-  const errs = errors as FieldErrors<PersonalFormFields>;
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-3">
-        <Input
-          id="first_name"
-          label="Prénom"
-          autoComplete="given-name"
-          error={errs.first_name?.message}
-          {...register("first_name" as Path<T>)}
-        />
-        <Input
-          id="last_name"
-          label="Nom"
-          autoComplete="family-name"
-          error={errs.last_name?.message}
-          {...register("last_name" as Path<T>)}
-        />
-      </div>
-      <div>
-        <Input
-          id="nickname"
-          label="Surnom (optionnel)"
-          autoComplete="nickname"
-          placeholder="Ex : Niko"
-          error={errs.nickname?.message}
-          {...register("nickname" as Path<T>)}
-        />
-        <p className="mt-1 text-xs text-gray-500">
-          Affiché dans les plannings. Vide → « Prénom L. ».
-        </p>
-      </div>
-      <Input
-        id="email"
-        label="Email"
-        type="email"
-        autoComplete="email"
-        error={errs.email?.message}
-        {...register("email" as Path<T>)}
-      />
-      <Input
-        id="password"
-        label="Mot de passe"
-        type="password"
-        autoComplete="new-password"
-        error={errs.password?.message}
-        {...register("password" as Path<T>)}
-      />
-      <Input
-        id="password_confirm"
-        label="Confirmer"
-        type="password"
-        autoComplete="new-password"
-        error={errs.password_confirm?.message}
-        {...register("password_confirm" as Path<T>)}
-      />
-    </>
-  );
-}
-
-function handleApiError<T extends FieldValues>(
-  err: unknown,
-  setError: UseFormSetError<T>,
-) {
-  const error = err as { response?: { data?: Record<string, unknown> } };
-  const data = error.response?.data;
-  if (!data) {
-    setError("root", { message: "Erreur lors de l'inscription" });
-    return;
-  }
-  // Top-level field errors
-  for (const [field, msg] of Object.entries(data)) {
-    if (Array.isArray(msg)) {
-      setError(field as Path<T>, { message: String(msg[0]) });
-    } else if (typeof msg === "object" && msg !== null) {
-      // Nested errors (e.g. org.invite_code)
-      for (const [nested, nestedMsg] of Object.entries(msg as Record<string, unknown>)) {
-        const arr = Array.isArray(nestedMsg) ? nestedMsg : [nestedMsg];
-        const targetField = field === "org" && nested === "invite_code" ? "invite_code" : nested;
-        setError(targetField as Path<T>, { message: String(arr[0]) });
-      }
-    } else {
-      setError(field as Path<T>, { message: String(msg) });
-    }
-  }
-}
