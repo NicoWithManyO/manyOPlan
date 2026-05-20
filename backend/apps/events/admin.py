@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Event, EventMembership
+from .models import Event, EventInvitation, EventMembership
 
 
 class EventMembershipInline(admin.TabularInline):
@@ -20,3 +20,11 @@ class EventAdmin(admin.ModelAdmin):
 class EventMembershipAdmin(admin.ModelAdmin):
     list_display = ("user", "event", "role", "created_at")
     list_filter = ("role",)
+
+
+@admin.register(EventInvitation)
+class EventInvitationAdmin(admin.ModelAdmin):
+    list_display = ("event", "label", "use_count", "max_uses", "expires_at", "created_at")
+    search_fields = ("label", "token", "event__name")
+    list_filter = ("event",)
+    readonly_fields = ("token", "use_count", "created_at")

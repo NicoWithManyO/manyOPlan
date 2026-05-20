@@ -1,17 +1,28 @@
-from rest_framework import permissions, status, viewsets
+from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.shortcuts import get_object_or_404
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.accounts.serializers import UserSerializer
 from apps.organizations.models import OrganizationMembership
 from core.permissions import IsEventAdmin, IsEventMember
 
-from .models import Event, EventMembership
+from .models import Event, EventInvitation, EventMembership
 from .serializers import (
     EventCreateSerializer,
+    EventInvitationPreviewSerializer,
+    EventInvitationSerializer,
     EventMembershipSerializer,
     EventSerializer,
+    InvitationAcceptSerializer,
     JoinEventSerializer,
 )
+
+User = get_user_model()
 
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -187,3 +198,122 @@ class EventMembershipViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(event_id=self.kwargs["event_pk"])
+
+
+class EventInvitationListCreateView(generics.ListCreateAPIView):
+    """Admin: list and create invitations for an event."""
+
+    serializer_class = EventInvitationSerializer
+    permission_classes = (permissions.IsAuthenticated, IsEventAdmin)
+    pagination_class = None
+
+    def get_queryset(self):
+        return EventInvitation.objects.filter(event_id=self.kwargs["event_pk"])
+
+    def perform_create(self, serializer):
+        event = get_object_or_404(Event, pk=self.kwargs["event_pk"])
+        serializer.save(event=event, created_by=self.request.user)
+
+
+class EventInvitationDetailView(generics.DestroyAPIView):
+    """Admin: delete an invitation."""
+
+    serializer_class = EventInvitationSerializer
+    permission_classes = (permissions.IsAuthenticated, IsEventAdmin)
+
+    def get_queryset(self):
+        return EventInvitation.objects.filter(event_id=self.kwargs["event_pk"])
+
+
+class InvitationPreviewView(APIView):
+    """Public: get a lightweight preview of an invitation by token."""
+
+    permission_classes = (permissions.AllowAny,)
+
+    def get(self, request, token):
+        invitation = get_object_or_404(
+            EventInvitation.objects.select_related("event", "event__organization"),
+            token=token,
+        )
+        return Response(EventInvitationPreviewSerializer(invitation).data)
+
+
+class InvitationAcceptView(APIView):
+    """Public: accept an invitation. If unauthenticated, creates a user.
+
+    Adds the user to the org (as MEMBER) and to the event (as VOLUNTEER).
+    """
+
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, token):
+        invitation = get_object_or_404(
+            EventInvitation.objects.select_related("event", "event__organization"),
+            token=token,
+        )
+        ok, reason = invitation.is_valid()
+        if not ok:
+            return Response(
+                {"detail": "Cette invitation n'est plus valide.", "invalid_reason": reason},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_signup = not request.user.is_authenticated
+        signup_data = None
+        if is_signup:
+            serializer = InvitationAcceptSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            signup_data = serializer.validated_data
+
+        with transaction.atomic():
+            # Re-fetch under transaction & validate again (cheap)
+            invitation = (
+                EventInvitation.objects.select_for_update()
+                .select_related("event", "event__organization")
+                .get(pk=invitation.pk)
+            )
+            ok, reason = invitation.is_valid()
+            if not ok:
+                return Response(
+                    {"detail": "Cette invitation n'est plus valide.", "invalid_reason": reason},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if is_signup:
+                user = User.objects.create_user(
+                    username=signup_data["email"],
+                    email=signup_data["email"],
+                    password=signup_data["password"],
+                    first_name=signup_data["first_name"],
+                    last_name=signup_data["last_name"],
+                    nickname=signup_data.get("nickname", ""),
+                )
+            else:
+                user = request.user
+
+            OrganizationMembership.objects.get_or_create(
+                user=user,
+                organization=invitation.event.organization,
+                defaults={"role": OrganizationMembership.Role.MEMBER},
+            )
+            EventMembership.objects.get_or_create(
+                user=user,
+                event=invitation.event,
+                defaults={"role": EventMembership.Role.VOLUNTEER},
+            )
+
+            invitation.use_count = invitation.use_count + 1
+            invitation.save(update_fields=["use_count"])
+
+        payload = {
+            "user": UserSerializer(user).data,
+            "event_id": invitation.event_id,
+            "organization_id": invitation.event.organization_id,
+        }
+        if is_signup:
+            refresh = RefreshToken.for_user(user)
+            payload["tokens"] = {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            }
+        return Response(payload, status=status.HTTP_200_OK)

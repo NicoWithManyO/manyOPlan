@@ -1,5 +1,8 @@
+import secrets
+
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from core.mixins import TimestampMixin
 
@@ -67,3 +70,43 @@ class EventMembership(TimestampMixin):
 
     def __str__(self):
         return f"{self.user} - {self.event} ({self.get_role_display()})"
+
+
+class EventInvitation(models.Model):
+    event = models.ForeignKey(
+        Event,
+        on_delete=models.CASCADE,
+        related_name="invitations",
+    )
+    token = models.CharField(max_length=60, unique=True, db_index=True)
+    label = models.CharField(max_length=100, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    max_uses = models.PositiveIntegerField(null=True, blank=True)
+    use_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Invitation événement"
+        verbose_name_plural = "Invitations événement"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.event} - {self.label or self.token[:8]}"
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(32)
+        super().save(*args, **kwargs)
+
+    def is_valid(self) -> tuple[bool, str | None]:
+        if self.expires_at and self.expires_at < timezone.now():
+            return False, "expired"
+        if self.max_uses and self.use_count >= self.max_uses:
+            return False, "exhausted"
+        return True, None

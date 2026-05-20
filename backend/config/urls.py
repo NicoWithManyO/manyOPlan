@@ -3,6 +3,7 @@ from django.urls import include, path
 
 from apps.accounts.views import AdminUserDetailView, AdminUserListView
 from apps.assignments.views import MyAssignmentsView
+from apps.events.views import InvitationAcceptView, InvitationPreviewView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -16,4 +17,14 @@ urlpatterns = [
     path("api/events/<int:event_pk>/assignments/", include("apps.assignments.urls")),
     path("api/events/<int:event_pk>/news/", include("apps.news.urls")),
     path("api/messages/", include("apps.messaging.urls")),
+    path(
+        "api/invitations/<str:token>/",
+        InvitationPreviewView.as_view(),
+        name="invitation-preview",
+    ),
+    path(
+        "api/invitations/<str:token>/accept/",
+        InvitationAcceptView.as_view(),
+        name="invitation-accept",
+    ),
 ]
