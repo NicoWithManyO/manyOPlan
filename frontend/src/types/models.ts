@@ -98,6 +98,50 @@ export interface EventMembership {
   created_at: string;
 }
 
+export interface EventInvitation {
+  id: number;
+  token: string;
+  label: string;
+  created_at: string;
+  expires_at: string | null;
+  max_uses: number | null;
+  use_count: number;
+  is_valid: boolean;
+  invalid_reason: string | null;
+}
+
+export interface EventInvitationCreateData {
+  label?: string;
+  token?: string;
+  expires_at?: string | null;
+  max_uses?: number | null;
+}
+
+export interface InvitationPreview {
+  event_name: string;
+  organization_name: string;
+  event_start_date: string;
+  event_end_date: string;
+  is_valid: boolean;
+  invalid_reason: string | null;
+}
+
+export interface InvitationAcceptSignup {
+  email: string;
+  password: string;
+  password_confirm: string;
+  first_name: string;
+  last_name: string;
+  nickname?: string;
+}
+
+export interface InvitationAcceptResponse {
+  user: User;
+  tokens?: AuthTokens;
+  event_id: number;
+  organization_id: number;
+}
+
 export interface PaginatedResponse<T> {
   count: number;
   next: string | null;

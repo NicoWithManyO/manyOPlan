@@ -1,6 +1,8 @@
 import type {
   Event,
   EventCreateData,
+  EventInvitation,
+  EventInvitationCreateData,
   EventMembership,
   PaginatedResponse,
 } from "../types/models";
@@ -65,5 +67,30 @@ export async function updateMemberRole(
     { role },
   );
   return res.data;
+}
+
+export async function getEventInvitations(eventId: number) {
+  const res = await client.get<EventInvitation[]>(
+    `/events/${eventId}/invitations/`,
+  );
+  return res.data;
+}
+
+export async function createEventInvitation(
+  eventId: number,
+  data: EventInvitationCreateData,
+) {
+  const res = await client.post<EventInvitation>(
+    `/events/${eventId}/invitations/`,
+    data,
+  );
+  return res.data;
+}
+
+export async function deleteEventInvitation(
+  eventId: number,
+  invitationId: number,
+) {
+  await client.delete(`/events/${eventId}/invitations/${invitationId}/`);
 }
 

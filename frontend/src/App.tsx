@@ -9,6 +9,7 @@ import { EventCreatePage } from "./features/events/EventCreatePage";
 import { EventDetailPage } from "./features/events/EventDetailPage";
 import { EventListPage } from "./features/events/EventListPage";
 import { EventSettingsPage } from "./features/events/EventSettingsPage";
+import { InvitationPage } from "./features/invitations/InvitationPage";
 import { MessagesPage } from "./features/messaging/MessagesPage";
 import { CreateOrgPage } from "./features/organizations/CreateOrgPage";
 import { CreateOrJoinPage } from "./features/organizations/CreateOrJoinPage";
@@ -29,6 +30,9 @@ export default function App() {
     <>
       <Toaster position="bottom-center" richColors />
       <Routes>
+        {/* Public invitation route (accessible logged in or out) */}
+        <Route path="/invite/:token" element={<InvitationPage />} />
+
         {/* Auth routes */}
         <Route element={<AuthLayout />}>
           <Route path="/login" element={<LoginPage />} />

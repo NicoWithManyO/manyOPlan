@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { z } from "zod";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
@@ -13,8 +13,18 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+function safeNextPath(value: string | null): string | null {
+  if (!value) return null;
+  if (!value.startsWith("/")) return null;
+  if (value.startsWith("//")) return null;
+  return value;
+}
+
 export function LoginPage() {
   const { login, isLoading } = useAuthStore();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const next = safeNextPath(searchParams.get("next"));
   const {
     register,
     handleSubmit,
@@ -27,6 +37,7 @@ export function LoginPage() {
   const onSubmit = async (data: FormData) => {
     try {
       await login(data);
+      navigate(next || "/events", { replace: true });
     } catch {
       setError("root", {
         message: "Identifiants incorrects",

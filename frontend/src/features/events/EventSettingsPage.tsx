@@ -1,5 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Save, Search, Shield, ShieldOff, Trash2, UserPlus, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  Link2,
+  Plus,
+  Save,
+  Search,
+  Shield,
+  ShieldOff,
+  Trash2,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -10,7 +22,7 @@ import { searchUsers, type UserSearchResult } from "../../api/users";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useEventStore } from "../../stores/eventStore";
-import type { EventMembership } from "../../types/models";
+import type { EventInvitation, EventMembership } from "../../types/models";
 import { cn } from "../../utils/cn";
 
 const schema = z
@@ -41,6 +53,287 @@ function toLocalDatetime(isoStr: string) {
   const offset = d.getTimezoneOffset();
   const local = new Date(d.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
+}
+
+// --- Invitations section ---
+function formatDateShort(iso: string | null) {
+  if (!iso) return null;
+  return new Date(iso).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function isExpired(inv: EventInvitation) {
+  if (!inv.expires_at) return false;
+  return new Date(inv.expires_at).getTime() < Date.now();
+}
+
+function statusLabel(inv: EventInvitation) {
+  if (isExpired(inv)) return { label: "Expirée", className: "bg-gray-100 text-gray-500" };
+  if (inv.max_uses != null && inv.use_count >= inv.max_uses) {
+    return { label: "Épuisée", className: "bg-gray-100 text-gray-500" };
+  }
+  return { label: "Active", className: "bg-emerald-100 text-emerald-700" };
+}
+
+const SLUG_RE = /^[A-Za-z0-9_-]{4,60}$/;
+
+function InvitationsManagement({ eventId }: { eventId: number }) {
+  const [invitations, setInvitations] = useState<EventInvitation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [label, setLabel] = useState("");
+  const [customSlug, setCustomSlug] = useState("");
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState("");
+  const [maxUses, setMaxUses] = useState("");
+
+  const fetchInvitations = async () => {
+    setLoading(true);
+    try {
+      const data = await eventsApi.getEventInvitations(eventId);
+      setInvitations(data);
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInvitations();
+  }, [eventId]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSlugError(null);
+    const slug = customSlug.trim();
+    if (slug && !SLUG_RE.test(slug)) {
+      setSlugError("4-60 caractères : lettres, chiffres, tirets, underscores.");
+      return;
+    }
+    setCreating(true);
+    try {
+      await eventsApi.createEventInvitation(eventId, {
+        label: label.trim() || undefined,
+        token: slug || undefined,
+        expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+        max_uses: maxUses ? Number(maxUses) : null,
+      });
+      toast.success("Invitation créée");
+      setLabel("");
+      setCustomSlug("");
+      setExpiresAt("");
+      setMaxUses("");
+      setShowForm(false);
+      fetchInvitations();
+    } catch (err: unknown) {
+      const error = err as {
+        response?: { data?: { detail?: string; token?: string[] } };
+      };
+      const tokenErr = error.response?.data?.token?.[0];
+      if (tokenErr) {
+        setSlugError(tokenErr);
+      } else {
+        toast.error(error.response?.data?.detail ?? "Erreur");
+      }
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDelete = async (inv: EventInvitation) => {
+    if (!confirm("Supprimer cette invitation ? Le lien deviendra inutilisable.")) return;
+    try {
+      await eventsApi.deleteEventInvitation(eventId, inv.id);
+      toast.success("Invitation supprimée");
+      fetchInvitations();
+    } catch {
+      toast.error("Erreur");
+    }
+  };
+
+  const handleCopy = async (token: string) => {
+    const url = `${window.location.origin}/invite/${token}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Lien copié");
+    } catch {
+      toast.error("Impossible de copier");
+    }
+  };
+
+  return (
+    <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+          <Link2 className="h-4 w-4" />
+          Liens d'invitation
+          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500">
+            {invitations.length}
+          </span>
+        </h3>
+        {!showForm && (
+          <Button variant="ghost" size="sm" onClick={() => setShowForm(true)}>
+            <Plus className="mr-1 h-4 w-4" />
+            Nouveau lien
+          </Button>
+        )}
+      </div>
+
+      <p className="mb-4 text-xs text-gray-500">
+        Partagez ces liens pour permettre à des bénévoles de rejoindre directement
+        l'événement (et l'association).
+      </p>
+
+      {showForm && (
+        <form
+          onSubmit={handleCreate}
+          className="mb-4 space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3"
+        >
+          <Input
+            id="inv_label"
+            label="Libellé (optionnel)"
+            placeholder="Ex : Bénévoles ouverture"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <div>
+            <Input
+              id="inv_slug"
+              label="Lien personnalisé (optionnel)"
+              placeholder="Ex : festival2026"
+              value={customSlug}
+              onChange={(e) => {
+                setCustomSlug(e.target.value);
+                if (slugError) setSlugError(null);
+              }}
+              error={slugError ?? undefined}
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Donne une URL mémorisable : <code className="rounded bg-gray-100 px-1">/invite/{customSlug || "ton-lien"}</code>. Vide → généré automatiquement.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
+              id="inv_expires_at"
+              label="Expiration (optionnel)"
+              type="datetime-local"
+              value={expiresAt}
+              onChange={(e) => setExpiresAt(e.target.value)}
+            />
+            <Input
+              id="inv_max_uses"
+              label="Nb max d'utilisations (optionnel)"
+              type="number"
+              min={1}
+              value={maxUses}
+              onChange={(e) => setMaxUses(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2">
+            <Button type="submit" size="sm" isLoading={creating}>
+              Créer le lien
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setShowForm(false);
+                setLabel("");
+                setCustomSlug("");
+                setSlugError(null);
+                setExpiresAt("");
+                setMaxUses("");
+              }}
+            >
+              Annuler
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {loading ? (
+        <div className="h-20 animate-pulse rounded-lg bg-gray-100" />
+      ) : invitations.length === 0 ? (
+        <p className="py-4 text-center text-sm text-gray-500">
+          Aucun lien d'invitation.
+        </p>
+      ) : (
+        <ul className="space-y-2">
+          {invitations.map((inv) => {
+            const status = statusLabel(inv);
+            const url = `${window.location.origin}/invite/${inv.token}`;
+            return (
+              <li
+                key={inv.id}
+                className="rounded-lg border border-gray-200 p-3 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {inv.label || "Sans libellé"}
+                      </p>
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-xs font-medium",
+                          status.className,
+                        )}
+                      >
+                        {status.label}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {inv.use_count}
+                      {inv.max_uses != null ? ` / ${inv.max_uses}` : ""} utilisation
+                      {inv.use_count > 1 ? "s" : ""}
+                      {inv.expires_at && (
+                        <>
+                          {" · expire le "}
+                          {formatDateShort(inv.expires_at)}
+                        </>
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(inv)}
+                    className="rounded p-1.5 text-red-500 hover:bg-red-50"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={url}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="flex-1 min-w-0 rounded border border-gray-200 bg-gray-50 px-2 py-1 text-xs text-gray-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleCopy(inv.token)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Copier
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 // --- Member management section ---
@@ -376,6 +669,9 @@ export function EventSettingsPage() {
 
       {/* Members & Admins */}
       <MemberManagement eventId={eventId} />
+
+      {/* Invitations */}
+      <InvitationsManagement eventId={eventId} />
 
       {/* Danger zone */}
       <div className="rounded-xl border border-red-200 bg-red-50 p-6">
