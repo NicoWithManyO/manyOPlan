@@ -192,7 +192,7 @@ export function EventDetailPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <div className="flex shrink-0 flex-row items-center justify-end gap-2 sm:flex-col-reverse sm:items-end sm:justify-center">
             {!isMember && (
               <Button onClick={handleJoin} size="md">
                 <UserPlus className="mr-1.5 h-4 w-4" />
