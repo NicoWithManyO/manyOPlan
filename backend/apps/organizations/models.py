@@ -18,6 +18,13 @@ class Organization(TimestampMixin):
         on_delete=models.PROTECT,
         related_name="created_organizations",
     )
+    logo = models.ImageField(
+        upload_to="org_logos/",
+        blank=True,
+        null=True,
+        max_length=255,
+        verbose_name="Logo",
+    )
 
     class Meta:
         verbose_name = "Association"

@@ -25,6 +25,7 @@ def validate_invite_code(value):
 class OrganizationSerializer(serializers.ModelSerializer):
     my_role = serializers.SerializerMethodField()
     member_count = serializers.SerializerMethodField()
+    logo = serializers.SerializerMethodField()
 
     class Meta:
         model = Organization
@@ -33,12 +34,23 @@ class OrganizationSerializer(serializers.ModelSerializer):
             "name",
             "slug",
             "invite_code",
+            "logo",
             "created_by",
             "created_at",
             "my_role",
             "member_count",
         )
-        read_only_fields = ("id", "created_by", "created_at", "my_role", "member_count")
+        read_only_fields = (
+            "id",
+            "logo",
+            "created_by",
+            "created_at",
+            "my_role",
+            "member_count",
+        )
+
+    def get_logo(self, obj):
+        return obj.logo.url if obj.logo else None
 
     def get_my_role(self, obj):
         request = self.context.get("request")

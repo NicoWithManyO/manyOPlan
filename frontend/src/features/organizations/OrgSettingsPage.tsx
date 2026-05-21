@@ -1,16 +1,20 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
+  Building2,
   Copy,
+  Image as ImageIcon,
   KeyRound,
+  Link as LinkIcon,
   RefreshCw,
   Save,
   Shield,
   ShieldOff,
   Trash2,
+  Upload,
   Users,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -19,9 +23,13 @@ import * as orgsApi from "../../api/organizations";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useOrgStore } from "../../stores/orgStore";
-import type { OrganizationMembership } from "../../types/models";
+import type { Organization, OrganizationMembership } from "../../types/models";
 import { cn } from "../../utils/cn";
 import { copyToClipboard } from "../../utils/copyToClipboard";
+
+const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+const LOGO_ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
+const LOGO_ACCEPT_ATTR = LOGO_ACCEPTED_TYPES.join(",");
 
 const nameSchema = z.object({
   name: z.string().min(1, "Nom requis").max(120, "120 caractères maximum"),
@@ -36,6 +44,165 @@ const codeSchema = z.object({
     .regex(/^[A-Za-z0-9_-]+$/, "Lettres, chiffres, tirets, underscores"),
 });
 type CodeForm = z.infer<typeof codeSchema>;
+
+const logoUrlSchema = z.object({
+  url: z
+    .string()
+    .min(1, "URL requise")
+    .max(2048, "URL trop longue")
+    .url("URL invalide")
+    .refine((v) => v.startsWith("https://"), "L'URL doit commencer par https://"),
+});
+type LogoUrlForm = z.infer<typeof logoUrlSchema>;
+
+function pickApiError(err: unknown, fallback = "Erreur") {
+  const e = err as {
+    response?: { data?: { detail?: string; file?: string[]; url?: string[] } };
+  };
+  return (
+    e.response?.data?.detail ??
+    e.response?.data?.file?.[0] ??
+    e.response?.data?.url?.[0] ??
+    fallback
+  );
+}
+
+function LogoSection({
+  org,
+  onChange,
+}: {
+  org: Organization;
+  onChange: () => Promise<void>;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const {
+    register: regUrl,
+    handleSubmit: handleUrl,
+    reset: resetUrl,
+    formState: { errors: urlErrors, isSubmitting: urlSubmitting },
+  } = useForm<LogoUrlForm>({ resolver: zodResolver(logoUrlSchema) });
+
+  const handleFilePick = () => fileInputRef.current?.click();
+
+  const runLogoAction = async (
+    action: () => Promise<unknown>,
+    successMsg: string,
+    setBusy?: (v: boolean) => void,
+  ) => {
+    setBusy?.(true);
+    try {
+      await action();
+      await onChange();
+      toast.success(successMsg);
+    } catch (err) {
+      toast.error(pickApiError(err));
+    } finally {
+      setBusy?.(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!LOGO_ACCEPTED_TYPES.includes(file.type)) {
+      toast.error("Format non supporté (PNG, JPEG, WebP uniquement)");
+      return;
+    }
+    if (file.size > LOGO_MAX_BYTES) {
+      toast.error("Fichier trop volumineux (max 2 Mo)");
+      return;
+    }
+    runLogoAction(() => orgsApi.uploadLogo(org.id, file), "Logo mis à jour", setUploading);
+  };
+
+  const onUrlSubmit = async (data: LogoUrlForm) => {
+    await runLogoAction(() => orgsApi.setLogoFromUrl(org.id, data.url), "Logo importé");
+    resetUrl({ url: "" });
+  };
+
+  const handleRemove = () => {
+    if (!confirm("Supprimer le logo de l'association ?")) return;
+    runLogoAction(() => orgsApi.removeLogo(org.id), "Logo supprimé", setRemoving);
+  };
+
+  return (
+    <div className="space-y-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+        <ImageIcon className="h-4 w-4" />
+        Logo
+      </h3>
+      <div className="flex items-start gap-4">
+        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 ring-1 ring-gray-200">
+          {org.logo ? (
+            <img
+              src={org.logo}
+              alt={`Logo ${org.name}`}
+              className="h-full w-full object-contain p-1"
+            />
+          ) : (
+            <Building2 className="h-10 w-10 text-gray-300" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1 space-y-3">
+          <p className="text-xs text-gray-500">
+            PNG, JPEG ou WebP. 2 Mo maximum. Redimensionnée à 512 px max (ratio conservé).
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={LOGO_ACCEPT_ATTR}
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleFilePick}
+              isLoading={uploading}
+            >
+              <Upload className="mr-1.5 h-4 w-4" />
+              Choisir un fichier
+            </Button>
+            {org.logo && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleRemove}
+                isLoading={removing}
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" />
+                Supprimer
+              </Button>
+            )}
+          </div>
+          <form
+            onSubmit={handleUrl(onUrlSubmit)}
+            className="flex flex-col gap-2 sm:flex-row sm:items-start"
+          >
+            <div className="flex-1">
+              <Input
+                id="logo_url"
+                placeholder="https://exemple.com/logo.png"
+                error={urlErrors.url?.message}
+                {...regUrl("url")}
+              />
+            </div>
+            <Button type="submit" size="sm" variant="secondary" isLoading={urlSubmitting}>
+              <LinkIcon className="mr-1.5 h-4 w-4" />
+              Importer depuis une URL
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function MemberRow({
   member,
@@ -242,6 +409,10 @@ export function OrgSettingsPage() {
     }
   };
 
+  const refreshOrgs = async () => {
+    await Promise.all([refreshCurrentOrg(), fetchMyOrgs()]);
+  };
+
   const onCodeSubmit = async (data: CodeForm) => {
     try {
       await orgsApi.updateOrg(orgId, { invite_code: data.invite_code });
@@ -309,6 +480,9 @@ export function OrgSettingsPage() {
           Enregistrer
         </Button>
       </form>
+
+      {/* Logo */}
+      <LogoSection org={org} onChange={refreshOrgs} />
 
       {/* Code d'invitation */}
       <form

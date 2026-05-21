@@ -19,3 +19,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5174",
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+# Media files (dev). In prod these are served by Nginx; here Django serves them.
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"

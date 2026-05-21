@@ -62,3 +62,26 @@ export async function memberAction(
 export async function kickMember(orgId: number, userId: number) {
   await client.delete(`/organizations/${orgId}/members/${userId}/`);
 }
+
+export async function uploadLogo(id: number, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await client.post<Organization>(
+    `/organizations/${id}/logo/`,
+    fd,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return res.data;
+}
+
+export async function setLogoFromUrl(id: number, url: string) {
+  const res = await client.post<Organization>(
+    `/organizations/${id}/logo/`,
+    { url },
+  );
+  return res.data;
+}
+
+export async function removeLogo(id: number) {
+  await client.delete(`/organizations/${id}/logo/`);
+}

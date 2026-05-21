@@ -9,7 +9,29 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useOrgStore } from "../stores/orgStore";
+import type { Organization } from "../types/models";
 import { cn } from "../utils/cn";
+
+function OrgIcon({
+  org,
+  className,
+  fallbackClassName,
+}: {
+  org?: Pick<Organization, "logo" | "name"> | null;
+  className: string;
+  fallbackClassName: string;
+}) {
+  if (org?.logo) {
+    return (
+      <img
+        src={org.logo}
+        alt=""
+        className={cn(className, "shrink-0 object-contain")}
+      />
+    );
+  }
+  return <Building2 className={cn(className, "shrink-0", fallbackClassName)} />;
+}
 
 export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
   const { currentOrg, myOrgs, setCurrentOrg } = useOrgStore();
@@ -38,7 +60,11 @@ export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
           title={collapsed ? currentOrg?.name : undefined}
         >
           <div className="flex min-w-0 items-center gap-2">
-            <Building2 className="h-4 w-4 shrink-0 text-indigo-600" />
+            <OrgIcon
+              org={currentOrg}
+              className="h-4 w-4"
+              fallbackClassName="text-indigo-600"
+            />
             {!collapsed && (
               <span className="truncate font-medium text-gray-800">
                 {currentOrg?.name ?? "Aucune asso"}
@@ -64,7 +90,11 @@ export function OrgSwitcher({ collapsed }: { collapsed?: boolean }) {
               className="flex cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-sm outline-none hover:bg-gray-100"
             >
               <span className="flex items-center gap-2">
-                <Building2 className="h-3.5 w-3.5 text-gray-400" />
+                <OrgIcon
+                  org={org}
+                  className="h-3.5 w-3.5"
+                  fallbackClassName="text-gray-400"
+                />
                 <span className="truncate">{org.name}</span>
               </span>
               {currentOrg?.id === org.id && (

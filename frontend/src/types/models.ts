@@ -22,6 +22,7 @@ export interface Organization {
   name: string;
   slug: string;
   invite_code: string | null;
+  logo: string | null;
   created_by: number;
   created_at: string;
   my_role: OrgRole | null;

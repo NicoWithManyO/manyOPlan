@@ -1,9 +1,12 @@
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from core.image_utils import fetch_remote_image, validate_and_process_image
 from core.permissions import IsOrgAdmin, IsOrgMember
 
 from .models import Organization, OrganizationMembership
@@ -114,6 +117,48 @@ class OrganizationViewSet(viewsets.ModelViewSet):
                 )
         membership.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        url_path="logo",
+        permission_classes=[permissions.IsAuthenticated, IsOrgAdmin],
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+    )
+    def logo(self, request, pk=None):
+        """Set (POST file or URL) or remove (DELETE) the org logo. Admin only."""
+        org = self.get_object()
+        if request.method == "DELETE":
+            if org.logo:
+                org.logo.delete(save=False)
+                org.logo = None
+                org.save(update_fields=["logo"])
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        try:
+            if "file" in request.FILES:
+                content = validate_and_process_image(request.FILES["file"])
+            else:
+                url = request.data.get("url")
+                if not url:
+                    return Response(
+                        {"detail": "Fournir un fichier ou une URL."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                content = fetch_remote_image(url)
+        except DjangoValidationError as exc:
+            return Response(
+                {"detail": exc.messages[0] if exc.messages else "Image invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if org.logo:
+            org.logo.delete(save=False)
+        org.logo.save(content.name, content, save=False)
+        org.save(update_fields=["logo"])
+        return Response(
+            OrganizationSerializer(org, context=self.get_serializer_context()).data
+        )
 
     @action(
         detail=True,
