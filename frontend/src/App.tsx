@@ -10,6 +10,7 @@ import { EventDetailPage } from "./features/events/EventDetailPage";
 import { EventListPage } from "./features/events/EventListPage";
 import { EventSettingsPage } from "./features/events/EventSettingsPage";
 import { InvitationPage } from "./features/invitations/InvitationPage";
+import { OrgInvitationPage } from "./features/invitations/OrgInvitationPage";
 import { PrivacyPage } from "./features/legal/PrivacyPage";
 import { MessagesPage } from "./features/messaging/MessagesPage";
 import { CreateOrgPage } from "./features/organizations/CreateOrgPage";
@@ -32,6 +33,7 @@ export default function App() {
       <Toaster position="bottom-center" richColors />
       <Routes>
         <Route path="/invite/:token" element={<InvitationPage />} />
+        <Route path="/asso-invite/:token" element={<OrgInvitationPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
 
         {/* Auth routes */}

@@ -9,26 +9,9 @@ from apps.organizations.serializers import (
     OrganizationCreateSerializer,
     OrganizationSerializer,
 )
+from core.validators import check_password_match, normalize_and_check_unique_email
 
 User = get_user_model()
-
-
-def normalize_and_check_unique_email(value):
-    """Lowercase the email and reject if a user already exists with it.
-
-    Shared between RegisterSerializer and InvitationAcceptSerializer.
-    """
-    normalized = value.strip().lower()
-    if User.objects.filter(username__iexact=normalized).exists():
-        raise serializers.ValidationError("Un compte avec cet email existe déjà.")
-    return normalized
-
-
-def check_password_match(password, password_confirm):
-    if password != password_confirm:
-        raise serializers.ValidationError(
-            {"password_confirm": "Les mots de passe ne correspondent pas."}
-        )
 
 
 class UserSerializer(serializers.ModelSerializer):

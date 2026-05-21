@@ -37,8 +37,14 @@ import {
   imageUrlSchema,
   type ImageUrlForm,
 } from "../../utils/image";
-import { InvitationEditModal } from "./InvitationEditModal";
-import { InvitationQRModal } from "./InvitationQRModal";
+import { InvitationEditModal } from "../invitations/InvitationEditModal";
+import { InvitationQRModal } from "../invitations/InvitationQRModal";
+import {
+  SLUG_RE,
+  formatDateShort,
+  isManuallyToggleable,
+  statusLabel,
+} from "../invitations/utils";
 
 const POSTER_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -71,39 +77,6 @@ function toLocalDatetime(isoStr: string) {
   const local = new Date(d.getTime() - offset * 60000);
   return local.toISOString().slice(0, 16);
 }
-
-function formatDateShort(iso: string | null) {
-  if (!iso) return null;
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function isExpired(inv: EventInvitation) {
-  if (!inv.expires_at) return false;
-  return new Date(inv.expires_at).getTime() < Date.now();
-}
-
-function statusLabel(inv: EventInvitation) {
-  if (isExpired(inv)) return { label: "Expirée", className: "bg-gray-100 text-gray-500" };
-  if (inv.max_uses != null && inv.use_count >= inv.max_uses) {
-    return { label: "Épuisée", className: "bg-gray-100 text-gray-500" };
-  }
-  if (!inv.is_active) return { label: "Inactive", className: "bg-gray-100 text-gray-600" };
-  return { label: "Active", className: "bg-emerald-100 text-emerald-700" };
-}
-
-function isManuallyToggleable(inv: EventInvitation) {
-  if (isExpired(inv)) return false;
-  if (inv.max_uses != null && inv.use_count >= inv.max_uses) return false;
-  return true;
-}
-
-const SLUG_RE = /^[A-Za-z0-9_-]{2,60}$/;
 
 function PosterSection({
   event,
@@ -599,7 +572,8 @@ function InvitationsManagement({
 
       {qrInvitation && (
         <InvitationQRModal
-          invitation={qrInvitation}
+          token={qrInvitation.token}
+          label={qrInvitation.label}
           onClose={() => setQrInvitation(null)}
           logoUrl={organizationLogo}
         />
@@ -607,9 +581,11 @@ function InvitationsManagement({
 
       {editingInvitation && (
         <InvitationEditModal
-          eventId={eventId}
           invitation={editingInvitation}
           onClose={() => setEditingInvitation(null)}
+          onSave={(label) =>
+            eventsApi.updateEventInvitation(eventId, editingInvitation.id, { label })
+          }
           onSaved={(updated) => {
             setInvitations((list) =>
               list.map((i) => (i.id === updated.id ? updated : i)),

@@ -1,22 +1,33 @@
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from rest_framework import permissions, status, viewsets
+from django.db.models import F, Q
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.accounts.serializers import UserSerializer
 from core.image_utils import fetch_remote_image, validate_and_process_image
 from core.permissions import IsOrgAdmin, IsOrgMember
 
-from .models import Organization, OrganizationMembership
+from .models import Organization, OrganizationInvitation, OrganizationMembership
 from .serializers import (
     JoinOrganizationSerializer,
     OrganizationCreateSerializer,
+    OrganizationInvitationPreviewSerializer,
+    OrganizationInvitationSerializer,
     OrganizationMembershipSerializer,
     OrganizationSerializer,
     OrganizationUpdateSerializer,
+    OrgInvitationAcceptSerializer,
 )
+
+User = get_user_model()
 
 
 class OrganizationViewSet(viewsets.ModelViewSet):
@@ -271,3 +282,130 @@ class OrganizationMemberActionView(APIView):
                 )
         target.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class OrganizationInvitationListCreateView(generics.ListCreateAPIView):
+    serializer_class = OrganizationInvitationSerializer
+    permission_classes = (permissions.IsAuthenticated, IsOrgAdmin)
+    pagination_class = None
+
+    def get_queryset(self):
+        return OrganizationInvitation.objects.filter(organization_id=self.kwargs["organization_pk"])
+
+    def perform_create(self, serializer):
+        serializer.save(
+            organization_id=self.kwargs["organization_pk"],
+            created_by=self.request.user,
+        )
+
+
+class OrganizationInvitationDetailView(generics.UpdateAPIView, generics.DestroyAPIView):
+    serializer_class = OrganizationInvitationSerializer
+    permission_classes = (permissions.IsAuthenticated, IsOrgAdmin)
+    http_method_names = ["patch", "delete", "options", "head"]
+
+    def get_queryset(self):
+        return OrganizationInvitation.objects.filter(organization_id=self.kwargs["organization_pk"])
+
+
+class OrganizationPromotedInvitationsView(generics.ListAPIView):
+    serializer_class = OrganizationInvitationSerializer
+    permission_classes = (permissions.IsAuthenticated, IsOrgMember)
+    pagination_class = None
+
+    def get_queryset(self):
+        now = timezone.now()
+        return (
+            OrganizationInvitation.objects.filter(
+                organization_id=self.kwargs["organization_pk"],
+                is_promoted=True,
+                is_active=True,
+            )
+            .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
+            .filter(Q(max_uses__isnull=True) | Q(use_count__lt=F("max_uses")))
+        )
+
+
+class OrgInvitationPreviewView(APIView):
+    permission_classes = (permissions.AllowAny,)
+
+    def get(self, request, token):
+        invitation = get_object_or_404(
+            OrganizationInvitation.objects.select_related("organization"),
+            token=token,
+        )
+        return Response(OrganizationInvitationPreviewSerializer(invitation).data)
+
+
+class OrgInvitationAcceptView(APIView):
+    """Public: accept an org invitation. If unauthenticated, creates a user.
+
+    Adds the user to the org (as MEMBER). Does not touch any event.
+    """
+
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request, token):
+        invitation = get_object_or_404(
+            OrganizationInvitation.objects.select_related("organization"),
+            token=token,
+        )
+        ok, reason = invitation.is_valid()
+        if not ok:
+            return Response(
+                {"detail": "Cette invitation n'est plus valide.", "invalid_reason": reason},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_signup = not request.user.is_authenticated
+        signup_data = None
+        if is_signup:
+            serializer = OrgInvitationAcceptSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            signup_data = serializer.validated_data
+
+        with transaction.atomic():
+            invitation = (
+                OrganizationInvitation.objects.select_for_update()
+                .select_related("organization")
+                .get(pk=invitation.pk)
+            )
+            ok, reason = invitation.is_valid()
+            if not ok:
+                return Response(
+                    {"detail": "Cette invitation n'est plus valide.", "invalid_reason": reason},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if is_signup:
+                user = User.objects.create_user(
+                    username=signup_data["email"],
+                    email=signup_data["email"],
+                    password=signup_data["password"],
+                    first_name=signup_data["first_name"],
+                    last_name=signup_data["last_name"],
+                    nickname=signup_data.get("nickname", ""),
+                )
+            else:
+                user = request.user
+
+            OrganizationMembership.objects.get_or_create(
+                user=user,
+                organization=invitation.organization,
+                defaults={"role": OrganizationMembership.Role.MEMBER},
+            )
+
+            invitation.use_count = invitation.use_count + 1
+            invitation.save(update_fields=["use_count"])
+
+        payload = {
+            "user": UserSerializer(user).data,
+            "organization_id": invitation.organization_id,
+        }
+        if is_signup:
+            refresh = RefreshToken.for_user(user)
+            payload["tokens"] = {
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+            }
+        return Response(payload, status=status.HTTP_200_OK)

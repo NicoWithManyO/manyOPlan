@@ -33,6 +33,7 @@ import {
   imageUrlSchema,
   type ImageUrlForm,
 } from "../../utils/image";
+import { OrgInvitationsManagement } from "./OrgInvitationsManagement";
 
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -514,6 +515,8 @@ export function OrgSettingsPage() {
           )}
         </div>
       </form>
+
+      <OrgInvitationsManagement orgId={orgId} organizationLogo={org.logo} />
 
       {/* Membres */}
       <MemberManagement orgId={orgId} />

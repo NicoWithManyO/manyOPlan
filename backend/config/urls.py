@@ -6,6 +6,10 @@ from django.urls import include, path
 from apps.accounts.views import AdminUserDetailView, AdminUserListView
 from apps.assignments.views import MyAssignmentsView
 from apps.events.views import InvitationAcceptView, InvitationPreviewView
+from apps.organizations.views import (
+    OrgInvitationAcceptView,
+    OrgInvitationPreviewView,
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -28,6 +32,16 @@ urlpatterns = [
         "api/invitations/<str:token>/accept/",
         InvitationAcceptView.as_view(),
         name="invitation-accept",
+    ),
+    path(
+        "api/asso-invitations/<str:token>/",
+        OrgInvitationPreviewView.as_view(),
+        name="org-invitation-preview",
+    ),
+    path(
+        "api/asso-invitations/<str:token>/accept/",
+        OrgInvitationAcceptView.as_view(),
+        name="org-invitation-accept",
     ),
 ]
 

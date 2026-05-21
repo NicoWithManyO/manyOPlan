@@ -33,7 +33,7 @@ import { useTaskStore } from "../../stores/taskStore";
 import type { EventInvitation } from "../../types/models";
 import { cn } from "../../utils/cn";
 import { EventPosterModal } from "./EventPosterModal";
-import { InvitationQRModal } from "./InvitationQRModal";
+import { InvitationQRModal } from "../invitations/InvitationQRModal";
 
 type Tab = "table" | "planning" | "dashboard" | "tasks" | "members" | "news";
 
@@ -283,7 +283,8 @@ export function EventDetailPage() {
 
       {qrInvitation && (
         <InvitationQRModal
-          invitation={qrInvitation}
+          token={qrInvitation.token}
+          label={qrInvitation.label}
           onClose={() => setQrInvitation(null)}
           logoUrl={currentEvent.organization_logo}
         />

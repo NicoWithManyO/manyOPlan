@@ -3,27 +3,38 @@ import { QRCodeCanvas } from "qrcode.react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/Button";
-import type { EventInvitation } from "../../types/models";
 import { copyToClipboard } from "../../utils/copyToClipboard";
 
 const QR_SIZE = 256;
 const QR_LOGO_SIZE = Math.round(QR_SIZE * 0.18);
 
 interface Props {
-  invitation: EventInvitation;
+  token: string;
+  label?: string;
+  urlPrefix?: string;
+  description?: string;
+  fileSlugPrefix?: string;
   onClose: () => void;
   logoUrl?: string | null;
 }
 
-export function InvitationQRModal({ invitation, onClose, logoUrl }: Props) {
+export function InvitationQRModal({
+  token,
+  label,
+  urlPrefix = "/invite/",
+  description = "Scannez ou partagez ce QR code pour rejoindre l'événement.",
+  fileSlugPrefix = "invite",
+  onClose,
+  logoUrl,
+}: Props) {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
-  const url = `${window.location.origin}/invite/${invitation.token}`;
+  const url = `${window.location.origin}${urlPrefix}${token}`;
   const fileSlug =
-    (invitation.label || invitation.token)
+    (label || token)
       .toLowerCase()
       .replace(/[^a-z0-9_-]+/g, "-")
       .replace(/^-+|-+$/g, "")
-      .slice(0, 40) || "invite";
+      .slice(0, 40) || fileSlugPrefix;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -48,7 +59,7 @@ export function InvitationQRModal({ invitation, onClose, logoUrl }: Props) {
     }
     const a = document.createElement("a");
     a.href = dataUrl;
-    a.download = `invite-${fileSlug}.png`;
+    a.download = `${fileSlugPrefix}-${fileSlug}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -76,11 +87,9 @@ export function InvitationQRModal({ invitation, onClose, logoUrl }: Props) {
           <X className="h-4 w-4" />
         </button>
         <h4 className="mb-1 pr-6 text-sm font-semibold text-gray-900">
-          {invitation.label || "Sans libellé"}
+          {label || "Sans libellé"}
         </h4>
-        <p className="mb-4 text-xs text-gray-500">
-          Scannez ou partagez ce QR code pour rejoindre l'événement.
-        </p>
+        <p className="mb-4 text-xs text-gray-500">{description}</p>
         <div
           ref={canvasWrapperRef}
           className="mx-auto mb-4 flex w-fit items-center justify-center rounded-lg border border-gray-200 bg-white p-3"

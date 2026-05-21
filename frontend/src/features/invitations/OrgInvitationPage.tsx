@@ -1,15 +1,18 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarDays, Users } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
-import { acceptInvitation, getInvitationPreview } from "../../api/invitations";
+import {
+  acceptOrgInvitation,
+  getOrgInvitationPreview,
+} from "../../api/invitations";
 import { Button } from "../../components/ui/Button";
 import { AuthShell } from "../../layouts/AuthShell";
 import { useAuthStore } from "../../stores/authStore";
-import type { InvitationPreview } from "../../types/models";
+import type { OrgInvitationPreview } from "../../types/models";
 import { handleApiError } from "../../utils/handleApiError";
 import { PersonalFields } from "../auth/PersonalFields";
 import { PrivacyConsent, privacyConsentField } from "../auth/PrivacyConsent";
@@ -31,16 +34,6 @@ const signupSchema = z
 
 type SignupFormData = z.infer<typeof signupSchema>;
 
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString("fr-FR", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 function invalidReasonLabel(reason: string | null | undefined): string {
   switch (reason) {
     case "expired":
@@ -54,12 +47,12 @@ function invalidReasonLabel(reason: string | null | undefined): string {
   }
 }
 
-export function InvitationPage() {
+export function OrgInvitationPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const [preview, setPreview] = useState<InvitationPreview | null>(null);
+  const [preview, setPreview] = useState<OrgInvitationPreview | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -72,7 +65,7 @@ export function InvitationPage() {
     const ctrl = new AbortController();
     (async () => {
       try {
-        const data = await getInvitationPreview(token);
+        const data = await getOrgInvitationPreview(token);
         if (!ctrl.signal.aborted) setPreview(data);
       } catch (err: unknown) {
         if (ctrl.signal.aborted) return;
@@ -100,35 +93,38 @@ export function InvitationPage() {
   }
 
   if (loadError || !preview) {
-    return <InvitationErrorState message={loadError ?? "Invitation indisponible."} />;
+    return (
+      <OrgInvitationErrorState message={loadError ?? "Invitation indisponible."} />
+    );
   }
 
   if (!preview.is_valid) {
-    return <InvitationErrorState message={invalidReasonLabel(preview.invalid_reason)} />;
+    return (
+      <OrgInvitationErrorState message={invalidReasonLabel(preview.invalid_reason)} />
+    );
   }
 
   return (
     <AuthShell>
-      <InvitationHeader preview={preview} />
+      <OrgInvitationHeader preview={preview} />
       {isAuthenticated ? (
         <AuthenticatedAcceptBlock
           token={token!}
-          eventName={preview.event_name}
           organizationName={preview.organization_name}
+          onJoined={() => navigate("/")}
         />
       ) : (
         <SignupBlock
           token={token!}
-          eventName={preview.event_name}
           organizationName={preview.organization_name}
-          onJoined={(eventId) => navigate(`/events/${eventId}`)}
+          onJoined={() => navigate("/")}
         />
       )}
     </AuthShell>
   );
 }
 
-function InvitationErrorState({ message }: { message: string }) {
+function OrgInvitationErrorState({ message }: { message: string }) {
   return (
     <AuthShell>
       <h2 className="mb-2 text-xl font-semibold text-gray-900">Invitation</h2>
@@ -140,45 +136,52 @@ function InvitationErrorState({ message }: { message: string }) {
   );
 }
 
-function InvitationHeader({ preview }: { preview: InvitationPreview }) {
+function OrgInvitationHeader({ preview }: { preview: OrgInvitationPreview }) {
   return (
-    <div className="mb-5">
-      <p className="text-xs uppercase tracking-wider text-indigo-600">Invitation</p>
-      <h2 className="mt-1 text-xl font-semibold text-gray-900">{preview.event_name}</h2>
-      <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-600">
-        <Users className="h-4 w-4" />
-        {preview.organization_name}
-      </p>
-      <p className="mt-2 flex items-start gap-1.5 text-xs text-gray-500">
-        <CalendarDays className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-        <span>
-          {formatDate(preview.event_start_date)}
-          {" → "}
-          {formatDate(preview.event_end_date)}
-        </span>
-      </p>
+    <div className="mb-5 flex items-start gap-3">
+      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 ring-1 ring-gray-200">
+        {preview.organization_logo ? (
+          <img
+            src={preview.organization_logo}
+            alt={`Logo ${preview.organization_name}`}
+            className="h-full w-full object-contain p-1"
+          />
+        ) : (
+          <Building2 className="h-7 w-7 text-gray-300" />
+        )}
+      </div>
+      <div className="min-w-0">
+        <p className="text-xs uppercase tracking-wider text-indigo-600">
+          Invitation
+        </p>
+        <h2 className="mt-1 truncate text-xl font-semibold text-gray-900">
+          {preview.organization_name}
+        </h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Vous êtes invité·e à rejoindre cette association.
+        </p>
+      </div>
     </div>
   );
 }
 
 function AuthenticatedAcceptBlock({
   token,
-  eventName,
   organizationName,
+  onJoined,
 }: {
   token: string;
-  eventName: string;
   organizationName: string;
+  onJoined: () => void;
 }) {
-  const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
 
   const onAccept = async () => {
     setSubmitting(true);
     try {
-      const res = await acceptInvitation(token);
-      toast.success("Vous avez rejoint l'événement !");
-      navigate(`/events/${res.event_id}`);
+      await acceptOrgInvitation(token);
+      toast.success(`Vous avez rejoint ${organizationName} !`);
+      onJoined();
     } catch (err: unknown) {
       const error = err as { response?: { data?: { detail?: string } } };
       toast.error(error.response?.data?.detail ?? "Impossible de rejoindre.");
@@ -188,28 +191,25 @@ function AuthenticatedAcceptBlock({
   };
 
   return (
-    <div>
+    <>
       <p className="mb-4 text-sm text-gray-700">
-        Rejoindre <span className="font-semibold">{eventName}</span> dans{" "}
-        <span className="font-semibold">{organizationName}</span> ?
+        Rejoindre <span className="font-semibold">{organizationName}</span> ?
       </p>
       <Button className="w-full" size="lg" onClick={onAccept} isLoading={submitting}>
         Confirmer
       </Button>
-    </div>
+    </>
   );
 }
 
 function SignupBlock({
   token,
-  eventName,
   organizationName,
   onJoined,
 }: {
   token: string;
-  eventName: string;
   organizationName: string;
-  onJoined: (eventId: number) => void;
+  onJoined: () => void;
 }) {
   const setTokens = useAuthStore((s) => s.setTokens);
   const fetchUser = useAuthStore((s) => s.fetchUser);
@@ -224,7 +224,7 @@ function SignupBlock({
   const onSubmit = async (data: SignupFormData) => {
     setSubmitting(true);
     try {
-      const res = await acceptInvitation(token, {
+      const res = await acceptOrgInvitation(token, {
         email: data.email,
         password: data.password,
         password_confirm: data.password_confirm,
@@ -235,7 +235,7 @@ function SignupBlock({
       if (res.tokens) setTokens(res.tokens);
       await fetchUser();
       toast.success("Compte créé. Bienvenue !");
-      onJoined(res.event_id);
+      onJoined();
     } catch (err: unknown) {
       handleApiError(err, setError, { fallbackMessage: "Erreur lors de l'inscription" });
     } finally {
@@ -247,7 +247,6 @@ function SignupBlock({
     <>
       <p className="mb-4 text-sm text-gray-700">
         Vous êtes invité·e à rejoindre{" "}
-        <span className="font-semibold">{eventName}</span> dans{" "}
         <span className="font-semibold">{organizationName}</span>. Créez votre
         compte pour participer.
       </p>
@@ -269,7 +268,7 @@ function SignupBlock({
       <p className="mt-4 text-center text-sm text-gray-600">
         Déjà un compte ?{" "}
         <Link
-          to={`/login?next=/invite/${token}`}
+          to={`/login?next=/asso-invite/${token}`}
           className="font-medium text-indigo-600 hover:text-indigo-500"
         >
           Se connecter

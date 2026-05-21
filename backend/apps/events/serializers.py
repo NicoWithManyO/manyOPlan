@@ -4,11 +4,8 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from apps.accounts.serializers import (
-    check_password_match,
-    normalize_and_check_unique_email,
-)
 from apps.organizations.models import Organization, OrganizationMembership
+from core.validators import check_password_match, normalize_and_check_unique_email
 
 from .models import Event, EventInvitation, EventMembership
 

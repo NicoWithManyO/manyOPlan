@@ -135,7 +135,7 @@ export function ProfilePage() {
   };
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Mon profil</h2>
 
       {/* Profile info */}

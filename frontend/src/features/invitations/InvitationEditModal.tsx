@@ -1,20 +1,28 @@
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import * as eventsApi from "../../api/events";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import type { EventInvitation } from "../../types/models";
 import { pickApiError } from "../../utils/handleApiError";
 
-interface Props {
-  eventId: number;
-  invitation: EventInvitation;
-  onClose: () => void;
-  onSaved: (updated: EventInvitation) => void;
+interface InvitationLike {
+  id: number;
+  label: string;
 }
 
-export function InvitationEditModal({ eventId, invitation, onClose, onSaved }: Props) {
+interface Props<T extends InvitationLike> {
+  invitation: T;
+  onClose: () => void;
+  onSaved: (updated: T) => void;
+  onSave: (label: string) => Promise<T>;
+}
+
+export function InvitationEditModal<T extends InvitationLike>({
+  invitation,
+  onClose,
+  onSaved,
+  onSave,
+}: Props<T>) {
   const [label, setLabel] = useState(invitation.label);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,9 +49,7 @@ export function InvitationEditModal({ eventId, invitation, onClose, onSaved }: P
     }
     setSaving(true);
     try {
-      const updated = await eventsApi.updateEventInvitation(eventId, invitation.id, {
-        label: next,
-      });
+      const updated = await onSave(next);
       toast.success("Libellé mis à jour");
       onSaved(updated);
     } catch (err) {

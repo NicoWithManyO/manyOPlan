@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Organization, OrganizationMembership
+from .models import Organization, OrganizationInvitation, OrganizationMembership
 
 
 class OrganizationMembershipInline(admin.TabularInline):
@@ -21,3 +21,20 @@ class OrganizationMembershipAdmin(admin.ModelAdmin):
     list_display = ("user", "organization", "role", "created_at")
     list_filter = ("role",)
     search_fields = ("user__username", "organization__name")
+
+
+@admin.register(OrganizationInvitation)
+class OrganizationInvitationAdmin(admin.ModelAdmin):
+    list_display = (
+        "organization",
+        "label",
+        "use_count",
+        "max_uses",
+        "expires_at",
+        "is_active",
+        "is_promoted",
+        "created_at",
+    )
+    search_fields = ("label", "token", "organization__name")
+    list_filter = ("organization", "is_active", "is_promoted")
+    readonly_fields = ("token", "use_count", "created_at")

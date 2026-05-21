@@ -1,4 +1,9 @@
-import type { Organization, OrganizationMembership } from "../types/models";
+import type {
+  Organization,
+  OrganizationInvitation,
+  OrganizationInvitationCreateData,
+  OrganizationMembership,
+} from "../types/models";
 import client from "./client";
 
 export async function getMyOrgs() {
@@ -84,4 +89,45 @@ export async function setLogoFromUrl(id: number, url: string) {
 
 export async function removeLogo(id: number) {
   await client.delete(`/organizations/${id}/logo/`);
+}
+
+export async function getOrgInvitations(orgId: number) {
+  const res = await client.get<OrganizationInvitation[]>(
+    `/organizations/${orgId}/invitations/`,
+  );
+  return res.data;
+}
+
+export async function createOrgInvitation(
+  orgId: number,
+  data: OrganizationInvitationCreateData,
+) {
+  const res = await client.post<OrganizationInvitation>(
+    `/organizations/${orgId}/invitations/`,
+    data,
+  );
+  return res.data;
+}
+
+export async function deleteOrgInvitation(orgId: number, invitationId: number) {
+  await client.delete(`/organizations/${orgId}/invitations/${invitationId}/`);
+}
+
+export async function updateOrgInvitation(
+  orgId: number,
+  invitationId: number,
+  data: Partial<Pick<OrganizationInvitation, "is_promoted" | "is_active" | "label">>,
+) {
+  const res = await client.patch<OrganizationInvitation>(
+    `/organizations/${orgId}/invitations/${invitationId}/`,
+    data,
+  );
+  return res.data;
+}
+
+export async function getPromotedOrgInvitations(orgId: number) {
+  const res = await client.get<OrganizationInvitation[]>(
+    `/organizations/${orgId}/invitations/promoted/`,
+  );
+  return res.data;
 }

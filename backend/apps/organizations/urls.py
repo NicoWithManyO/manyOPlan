@@ -13,4 +13,19 @@ urlpatterns = [
         views.OrganizationMemberActionView.as_view(),
         name="org-member-action",
     ),
+    path(
+        "<int:organization_pk>/invitations/",
+        views.OrganizationInvitationListCreateView.as_view(),
+        name="org-invitation-list",
+    ),
+    path(
+        "<int:organization_pk>/invitations/promoted/",
+        views.OrganizationPromotedInvitationsView.as_view(),
+        name="org-invitation-promoted",
+    ),
+    path(
+        "<int:organization_pk>/invitations/<int:pk>/",
+        views.OrganizationInvitationDetailView.as_view(),
+        name="org-invitation-detail",
+    ),
 ] + router.urls

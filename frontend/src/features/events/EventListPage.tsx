@@ -8,6 +8,7 @@ import { useEventStore } from "../../stores/eventStore";
 import { useOrgStore } from "../../stores/orgStore";
 import type { Event } from "../../types/models";
 import { cn } from "../../utils/cn";
+import { PromotedOrgInvitations } from "../organizations/PromotedOrgInvitations";
 import { EventPosterModal } from "./EventPosterModal";
 import { MyEngagements } from "./MyEngagements";
 
@@ -126,6 +127,13 @@ export function EventListPage() {
   return (
     <div>
       <MyEngagements />
+
+      {currentOrg && (
+        <PromotedOrgInvitations
+          orgId={currentOrg.id}
+          organizationLogo={currentOrg.logo}
+        />
+      )}
 
       <div className="mb-6 flex items-center justify-between">
         <div>

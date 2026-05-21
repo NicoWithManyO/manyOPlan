@@ -101,6 +101,8 @@ export interface EventMembership {
   created_at: string;
 }
 
+export type InvalidReason = "expired" | "exhausted" | "inactive";
+
 export interface EventInvitation {
   id: number;
   token: string;
@@ -110,7 +112,7 @@ export interface EventInvitation {
   max_uses: number | null;
   use_count: number;
   is_valid: boolean;
-  invalid_reason: string | null;
+  invalid_reason: InvalidReason | null;
   is_promoted: boolean;
   is_active: boolean;
 }
@@ -128,7 +130,7 @@ export interface InvitationPreview {
   event_start_date: string;
   event_end_date: string;
   is_valid: boolean;
-  invalid_reason: string | null;
+  invalid_reason: InvalidReason | null;
 }
 
 export interface InvitationAcceptSignup {
@@ -144,6 +146,40 @@ export interface InvitationAcceptResponse {
   user: User;
   tokens?: AuthTokens;
   event_id: number;
+  organization_id: number;
+}
+
+export interface OrganizationInvitation {
+  id: number;
+  token: string;
+  label: string;
+  created_at: string;
+  expires_at: string | null;
+  max_uses: number | null;
+  use_count: number;
+  is_valid: boolean;
+  invalid_reason: InvalidReason | null;
+  is_promoted: boolean;
+  is_active: boolean;
+}
+
+export interface OrganizationInvitationCreateData {
+  label?: string;
+  token?: string;
+  expires_at?: string | null;
+  max_uses?: number | null;
+}
+
+export interface OrgInvitationPreview {
+  organization_name: string;
+  organization_logo: string | null;
+  is_valid: boolean;
+  invalid_reason: InvalidReason | null;
+}
+
+export interface OrgInvitationAcceptResponse {
+  user: User;
+  tokens?: AuthTokens;
   organization_id: number;
 }
 
