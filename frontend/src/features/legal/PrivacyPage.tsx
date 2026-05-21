@@ -19,9 +19,15 @@ export function PrivacyPage() {
       <Section title="1. Responsable du traitement">
         <p>
           Le présent site, <strong>ManyOPlan</strong>, est édité par{" "}
-          <em>[À COMPLÉTER : nom de l'éditeur / association]</em>, dont le contact
-          pour toute question relative à vos données est{" "}
-          <em>[À COMPLÉTER : email de contact RGPD]</em>.
+          <strong>manyO.dev</strong>, dont le contact pour toute question
+          relative à vos données est{" "}
+          <a
+            href="mailto:nicowithmanyo@gmail.com"
+            className="text-indigo-600 hover:text-indigo-500"
+          >
+            nicowithmanyo@gmail.com
+          </a>
+          .
         </p>
       </Section>
 
@@ -80,7 +86,7 @@ export function PrivacyPage() {
           vendues à des tiers.
         </p>
         <p className="mt-2">
-          Sous-traitant technique : <em>[À COMPLÉTER : hébergeur, ex. OVH]</em>,
+          Sous-traitant technique : <strong>Hetzner Online GmbH</strong> (Allemagne),
           situé dans l'Union européenne.
         </p>
       </Section>
@@ -149,7 +155,13 @@ export function PrivacyPage() {
       <Section title="9. Contact">
         <p>
           Pour toute question ou pour exercer vos droits, écrivez à{" "}
-          <em>[À COMPLÉTER : email de contact RGPD]</em>.
+          <a
+            href="mailto:nicowithmanyo@gmail.com"
+            className="text-indigo-600 hover:text-indigo-500"
+          >
+            nicowithmanyo@gmail.com
+          </a>
+          .
         </p>
       </Section>
     </div>
