@@ -19,6 +19,7 @@ User = get_user_model()
 
 class EventSerializer(serializers.ModelSerializer):
     organization_name = serializers.CharField(source="organization.name", read_only=True)
+    organization_logo = serializers.SerializerMethodField()
     member_count = serializers.SerializerMethodField()
     my_role = serializers.SerializerMethodField()
 
@@ -33,12 +34,16 @@ class EventSerializer(serializers.ModelSerializer):
             "end_date",
             "organization",
             "organization_name",
+            "organization_logo",
             "member_count",
             "my_role",
             "created_at",
             "updated_at",
         )
         read_only_fields = ("id", "organization", "created_at", "updated_at")
+
+    def get_organization_logo(self, obj):
+        return obj.organization.logo.url if obj.organization.logo else None
 
     def get_member_count(self, obj):
         return obj.memberships.count()

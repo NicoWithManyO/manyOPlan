@@ -18,6 +18,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import * as eventsApi from "../../api/events";
 import { searchUsers, type UserSearchResult } from "../../api/users";
+import { OrgLogo } from "../../components/OrgLogo";
 import { Button } from "../../components/ui/Button";
 import { NewsPage } from "../news/NewsPage";
 import { DashboardView } from "../planning/DashboardView";
@@ -163,9 +164,12 @@ export function EventDetailPage() {
       <div className="mb-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
           <div className="min-w-0 flex-1">
-            <h2 className="text-2xl font-bold text-gray-900">
-              {currentEvent.name}
-            </h2>
+            <div className="flex items-center gap-3">
+              <OrgLogo src={currentEvent.organization_logo} className="h-10 w-10" />
+              <h2 className="min-w-0 text-2xl font-bold text-gray-900">
+                {currentEvent.name}
+              </h2>
+            </div>
             {currentEvent.description && (
               <p className="mt-1 text-sm text-gray-600">
                 {currentEvent.description}
@@ -188,42 +192,37 @@ export function EventDetailPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 flex-col items-end justify-between gap-2">
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {!isMember && (
-                <Button onClick={handleJoin} size="md">
-                  <UserPlus className="mr-1.5 h-4 w-4" />
-                  Rejoindre
-                </Button>
-              )}
-              {isMember && !isAdmin && (
-                <Button onClick={handleLeave} variant="ghost" size="sm">
-                  <LogOut className="mr-1.5 h-4 w-4" />
-                  Quitter
-                </Button>
-              )}
-              {isAdmin && (
-                <Button variant="secondary" size="sm" onClick={() => navigate(`/events/${eventId}/settings`)}>
-                  <Settings className="mr-1.5 h-4 w-4" />
-                  Paramètres
-                </Button>
-              )}
-            </div>
-            {isMember && promotedInvitations.length > 0 && (
-              <div className="flex flex-wrap items-center justify-end gap-2">
-                {promotedInvitations.map((inv) => (
-                  <button
-                    key={inv.id}
-                    type="button"
-                    onClick={() => setQrInvitation(inv)}
-                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
-                    title={`Partager : ${inv.label || "lien d'invitation"}`}
-                  >
-                    <QrCode className="h-3.5 w-3.5" />
-                    {inv.label ? `QR · ${inv.label}` : "QR"}
-                  </button>
-                ))}
-              </div>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {!isMember && (
+              <Button onClick={handleJoin} size="md">
+                <UserPlus className="mr-1.5 h-4 w-4" />
+                Rejoindre
+              </Button>
+            )}
+            {isMember &&
+              promotedInvitations.map((inv) => (
+                <button
+                  key={inv.id}
+                  type="button"
+                  onClick={() => setQrInvitation(inv)}
+                  className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                  title={`Partager : ${inv.label || "lien d'invitation"}`}
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                  {inv.label ? `QR · ${inv.label}` : "QR"}
+                </button>
+              ))}
+            {isMember && !isAdmin && (
+              <Button onClick={handleLeave} variant="ghost" size="sm">
+                <LogOut className="mr-1.5 h-4 w-4" />
+                Quitter
+              </Button>
+            )}
+            {isAdmin && (
+              <Button variant="secondary" size="sm" onClick={() => navigate(`/events/${eventId}/settings`)}>
+                <Settings className="mr-1.5 h-4 w-4" />
+                Paramètres
+              </Button>
             )}
           </div>
         </div>

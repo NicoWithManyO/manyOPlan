@@ -1,6 +1,7 @@
 import { CalendarDays, Plus, Users } from "lucide-react";
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
+import { OrgLogo } from "../../components/OrgLogo";
 import { Button } from "../../components/ui/Button";
 import { useEventStore } from "../../stores/eventStore";
 import { useOrgStore } from "../../stores/orgStore";
@@ -39,9 +40,12 @@ function EventCard({ event }: { event: Event }) {
       className="block rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 transition hover:shadow-md active:scale-[0.99]"
     >
       <div className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="text-lg font-semibold text-gray-900 leading-tight">
-          {event.name}
-        </h3>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <OrgLogo src={event.organization_logo} className="h-8 w-8" />
+          <h3 className="min-w-0 text-lg font-semibold leading-tight text-gray-900">
+            {event.name}
+          </h3>
+        </div>
         <span
           className={cn(
             "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium",

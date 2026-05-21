@@ -75,6 +75,7 @@ export interface Event {
   end_date: string;
   organization: number;
   organization_name: string;
+  organization_logo: string | null;
   member_count: number;
   my_role: MembershipRole | null;
   created_at: string;
