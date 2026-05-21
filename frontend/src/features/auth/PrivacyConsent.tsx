@@ -4,9 +4,7 @@ import { z } from "zod";
 
 export const privacyConsentField = {
   privacy_consent: z.literal(true, {
-    errorMap: () => ({
-      message: "Vous devez accepter la politique de confidentialité.",
-    }),
+    message: "Vous devez accepter la politique de confidentialité.",
   }),
 };
 
