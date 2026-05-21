@@ -37,6 +37,7 @@ import {
   imageUrlSchema,
   type ImageUrlForm,
 } from "../../utils/image";
+import { InvitationEditModal } from "./InvitationEditModal";
 import { InvitationQRModal } from "./InvitationQRModal";
 
 const POSTER_MAX_BYTES = 5 * 1024 * 1024;
@@ -92,7 +93,14 @@ function statusLabel(inv: EventInvitation) {
   if (inv.max_uses != null && inv.use_count >= inv.max_uses) {
     return { label: "Épuisée", className: "bg-gray-100 text-gray-500" };
   }
+  if (!inv.is_active) return { label: "Inactive", className: "bg-gray-100 text-gray-600" };
   return { label: "Active", className: "bg-emerald-100 text-emerald-700" };
+}
+
+function isManuallyToggleable(inv: EventInvitation) {
+  if (isExpired(inv)) return false;
+  if (inv.max_uses != null && inv.use_count >= inv.max_uses) return false;
+  return true;
 }
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,60}$/;
@@ -262,6 +270,7 @@ function InvitationsManagement({
   const [expiresAt, setExpiresAt] = useState("");
   const [maxUses, setMaxUses] = useState("");
   const [qrInvitation, setQrInvitation] = useState<EventInvitation | null>(null);
+  const [editingInvitation, setEditingInvitation] = useState<EventInvitation | null>(null);
 
   const fetchInvitations = async () => {
     setLoading(true);
@@ -345,6 +354,28 @@ function InvitationsManagement({
     } catch {
       setInvitations((list) =>
         list.map((i) => (i.id === inv.id ? { ...i, is_promoted: !next } : i)),
+      );
+      toast.error("Erreur");
+    }
+  };
+
+  const handleToggleActive = async (inv: EventInvitation) => {
+    const next = !inv.is_active;
+    const message = next
+      ? "Réactiver ce lien ? Il redeviendra utilisable."
+      : "Désactiver ce lien ? Il ne sera plus utilisable.";
+    if (!confirm(message)) return;
+    setInvitations((list) =>
+      list.map((i) => (i.id === inv.id ? { ...i, is_active: next } : i)),
+    );
+    try {
+      await eventsApi.updateEventInvitation(eventId, inv.id, {
+        is_active: next,
+      });
+      toast.success(next ? "Lien réactivé" : "Lien désactivé");
+    } catch {
+      setInvitations((list) =>
+        list.map((i) => (i.id === inv.id ? { ...i, is_active: !next } : i)),
       );
       toast.error("Erreur");
     }
@@ -452,6 +483,7 @@ function InvitationsManagement({
           {invitations.map((inv) => {
             const status = statusLabel(inv);
             const url = `${window.location.origin}/invite/${inv.token}`;
+            const toggleable = isManuallyToggleable(inv);
             return (
               <li
                 key={inv.id}
@@ -460,17 +492,40 @@ function InvitationsManagement({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        {inv.label || "Sans libellé"}
-                      </p>
-                      <span
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-xs font-medium",
-                          status.className,
-                        )}
+                      <button
+                        type="button"
+                        onClick={() => setEditingInvitation(inv)}
+                        className="cursor-pointer text-left text-sm font-medium text-gray-900 truncate hover:text-indigo-700 hover:underline"
+                        title="Modifier le libellé"
                       >
-                        {status.label}
-                      </span>
+                        {inv.label || "Sans libellé"}
+                      </button>
+                      {toggleable ? (
+                        <button
+                          type="button"
+                          onClick={() => handleToggleActive(inv)}
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-medium hover:opacity-80",
+                            status.className,
+                          )}
+                          title={
+                            inv.is_active
+                              ? "Cliquer pour désactiver ce lien"
+                              : "Cliquer pour réactiver ce lien"
+                          }
+                        >
+                          {status.label}
+                        </button>
+                      ) : (
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs font-medium",
+                            status.className,
+                          )}
+                        >
+                          {status.label}
+                        </span>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleTogglePromote(inv)}
@@ -547,6 +602,20 @@ function InvitationsManagement({
           invitation={qrInvitation}
           onClose={() => setQrInvitation(null)}
           logoUrl={organizationLogo}
+        />
+      )}
+
+      {editingInvitation && (
+        <InvitationEditModal
+          eventId={eventId}
+          invitation={editingInvitation}
+          onClose={() => setEditingInvitation(null)}
+          onSaved={(updated) => {
+            setInvitations((list) =>
+              list.map((i) => (i.id === updated.id ? updated : i)),
+            );
+            setEditingInvitation(null);
+          }}
         />
       )}
     </div>
@@ -814,7 +883,7 @@ export function EventSettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6">
       <Link
         to={`/events/${eventId}`}
         className="inline-flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900"

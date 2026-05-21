@@ -98,6 +98,7 @@ class EventInvitation(models.Model):
     max_uses = models.PositiveIntegerField(null=True, blank=True)
     use_count = models.PositiveIntegerField(default=0)
     is_promoted = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     class Meta:
         verbose_name = "Invitation événement"
@@ -113,6 +114,8 @@ class EventInvitation(models.Model):
         super().save(*args, **kwargs)
 
     def is_valid(self) -> tuple[bool, str | None]:
+        if not self.is_active:
+            return False, "inactive"
         if self.expires_at and self.expires_at < timezone.now():
             return False, "expired"
         if self.max_uses and self.use_count >= self.max_uses:

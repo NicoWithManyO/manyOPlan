@@ -112,6 +112,7 @@ export interface EventInvitation {
   is_valid: boolean;
   invalid_reason: string | null;
   is_promoted: boolean;
+  is_active: boolean;
 }
 
 export interface EventInvitationCreateData {

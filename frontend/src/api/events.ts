@@ -97,7 +97,7 @@ export async function deleteEventInvitation(
 export async function updateEventInvitation(
   eventId: number,
   invitationId: number,
-  data: Partial<Pick<EventInvitation, "is_promoted">>,
+  data: Partial<Pick<EventInvitation, "is_promoted" | "is_active" | "label">>,
 ) {
   const res = await client.patch<EventInvitation>(
     `/events/${eventId}/invitations/${invitationId}/`,
