@@ -26,10 +26,15 @@ import { useOrgStore } from "../../stores/orgStore";
 import type { Organization, OrganizationMembership } from "../../types/models";
 import { cn } from "../../utils/cn";
 import { copyToClipboard } from "../../utils/copyToClipboard";
+import { pickApiError } from "../../utils/handleApiError";
+import {
+  ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_IMAGE_TYPES_ATTR,
+  imageUrlSchema,
+  type ImageUrlForm,
+} from "../../utils/image";
 
 const LOGO_MAX_BYTES = 2 * 1024 * 1024;
-const LOGO_ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/webp"];
-const LOGO_ACCEPT_ATTR = LOGO_ACCEPTED_TYPES.join(",");
 
 const nameSchema = z.object({
   name: z.string().min(1, "Nom requis").max(120, "120 caractères maximum"),
@@ -45,27 +50,6 @@ const codeSchema = z.object({
 });
 type CodeForm = z.infer<typeof codeSchema>;
 
-const logoUrlSchema = z.object({
-  url: z
-    .string()
-    .min(1, "URL requise")
-    .max(2048, "URL trop longue")
-    .url("URL invalide")
-    .refine((v) => v.startsWith("https://"), "L'URL doit commencer par https://"),
-});
-type LogoUrlForm = z.infer<typeof logoUrlSchema>;
-
-function pickApiError(err: unknown, fallback = "Erreur") {
-  const e = err as {
-    response?: { data?: { detail?: string; file?: string[]; url?: string[] } };
-  };
-  return (
-    e.response?.data?.detail ??
-    e.response?.data?.file?.[0] ??
-    e.response?.data?.url?.[0] ??
-    fallback
-  );
-}
 
 function LogoSection({
   org,
@@ -83,7 +67,7 @@ function LogoSection({
     handleSubmit: handleUrl,
     reset: resetUrl,
     formState: { errors: urlErrors, isSubmitting: urlSubmitting },
-  } = useForm<LogoUrlForm>({ resolver: zodResolver(logoUrlSchema) });
+  } = useForm<ImageUrlForm>({ resolver: zodResolver(imageUrlSchema) });
 
   const handleFilePick = () => fileInputRef.current?.click();
 
@@ -108,7 +92,7 @@ function LogoSection({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!LOGO_ACCEPTED_TYPES.includes(file.type)) {
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
       toast.error("Format non supporté (PNG, JPEG, WebP uniquement)");
       return;
     }
@@ -119,7 +103,7 @@ function LogoSection({
     runLogoAction(() => orgsApi.uploadLogo(org.id, file), "Logo mis à jour", setUploading);
   };
 
-  const onUrlSubmit = async (data: LogoUrlForm) => {
+  const onUrlSubmit = async (data: ImageUrlForm) => {
     await runLogoAction(() => orgsApi.setLogoFromUrl(org.id, data.url), "Logo importé");
     resetUrl({ url: "" });
   };
@@ -155,7 +139,7 @@ function LogoSection({
             <input
               ref={fileInputRef}
               type="file"
-              accept={LOGO_ACCEPT_ATTR}
+              accept={ACCEPTED_IMAGE_TYPES_ATTR}
               className="hidden"
               onChange={handleFileChange}
             />

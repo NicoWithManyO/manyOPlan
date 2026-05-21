@@ -53,17 +53,19 @@ def _random_name(ext: str) -> str:
     return f"{secrets.token_urlsafe(16)}.{ext}"
 
 
-def validate_and_process_image(file_obj) -> ContentFile:
+def validate_and_process_image(
+    file_obj, *, max_bytes: int = MAX_UPLOAD_BYTES, max_dimension: int = MAX_IMAGE_DIMENSION
+) -> ContentFile:
     """Validate, strip metadata, resize, re-encode.
 
     Accepts any object with .read() (UploadedFile, BytesIO, ...). Raises
     ValidationError with a user-facing French message on any rejection.
     Returns a ContentFile whose .name is a random server-generated filename.
     """
-    raw = file_obj.read(MAX_UPLOAD_BYTES + 1)
-    if len(raw) > MAX_UPLOAD_BYTES:
+    raw = file_obj.read(max_bytes + 1)
+    if len(raw) > max_bytes:
         raise ValidationError(
-            f"Fichier trop volumineux (max {MAX_UPLOAD_BYTES // (1024 * 1024)} Mo)."
+            f"Fichier trop volumineux (max {max_bytes // (1024 * 1024)} Mo)."
         )
 
     # Pillow's verify() consumes the file, so re-open for actual processing.
@@ -84,7 +86,7 @@ def validate_and_process_image(file_obj) -> ContentFile:
     if img.mode != target_mode:
         img = img.convert(target_mode)
 
-    img.thumbnail((MAX_IMAGE_DIMENSION, MAX_IMAGE_DIMENSION), Image.LANCZOS)
+    img.thumbnail((max_dimension, max_dimension), Image.LANCZOS)
 
     # JPEG can't carry alpha — promote those uploads to PNG.
     if has_alpha:
@@ -143,7 +145,7 @@ def _resolve_safe(host: str) -> str:
     return chosen
 
 
-def _fetch_once(url: str) -> tuple[int, dict[str, str], bytes | None]:
+def _fetch_once(url: str, *, max_bytes: int) -> tuple[int, dict[str, str], bytes | None]:
     """One HTTPS request with SSRF protections.
 
     Returns (status, headers, body). Body is None for 3xx (caller follows).
@@ -200,7 +202,7 @@ def _fetch_once(url: str) -> tuple[int, dict[str, str], bytes | None]:
         clen = headers.get("content-length")
         if clen is not None:
             try:
-                if int(clen) > MAX_FETCH_BYTES:
+                if int(clen) > max_bytes:
                     raise ValidationError(_GENERIC_URL_ERROR)
             except ValueError:
                 raise ValidationError(_GENERIC_URL_ERROR) from None
@@ -211,7 +213,7 @@ def _fetch_once(url: str) -> tuple[int, dict[str, str], bytes | None]:
             if not chunk:
                 break
             body.extend(chunk)
-            if len(body) > MAX_FETCH_BYTES:
+            if len(body) > max_bytes:
                 raise ValidationError(_GENERIC_URL_ERROR)
         return status, headers, bytes(body)
     except (TimeoutError, OSError, http.client.HTTPException):
@@ -220,7 +222,9 @@ def _fetch_once(url: str) -> tuple[int, dict[str, str], bytes | None]:
         conn.close()
 
 
-def fetch_remote_image(url: str) -> ContentFile:
+def fetch_remote_image(
+    url: str, *, max_bytes: int = MAX_FETCH_BYTES, max_dimension: int = MAX_IMAGE_DIMENSION
+) -> ContentFile:
     """SSRF-safe HTTPS fetch + Pillow re-encoding pipeline.
 
     Failure modes all collapse to one generic French error to avoid leaking
@@ -231,10 +235,12 @@ def fetch_remote_image(url: str) -> ContentFile:
 
     current = url
     for _ in range(MAX_REDIRECTS + 1):
-        status, headers, body = _fetch_once(current)
+        status, headers, body = _fetch_once(current, max_bytes=max_bytes)
         if body is not None:
             # Final hop: re-validate via Pillow (defeats Content-Type lying).
-            return validate_and_process_image(BytesIO(body))
+            return validate_and_process_image(
+                BytesIO(body), max_bytes=max_bytes, max_dimension=max_dimension
+            )
         location = headers.get("location")
         if not location:
             raise ValidationError(_GENERIC_URL_ERROR)

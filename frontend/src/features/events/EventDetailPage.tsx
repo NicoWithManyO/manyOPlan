@@ -18,6 +18,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import * as eventsApi from "../../api/events";
 import { searchUsers, type UserSearchResult } from "../../api/users";
+import { EventPoster } from "../../components/EventPoster";
 import { OrgLogo } from "../../components/OrgLogo";
 import { Button } from "../../components/ui/Button";
 import { NewsPage } from "../news/NewsPage";
@@ -31,6 +32,7 @@ import { useOrgStore } from "../../stores/orgStore";
 import { useTaskStore } from "../../stores/taskStore";
 import type { EventInvitation } from "../../types/models";
 import { cn } from "../../utils/cn";
+import { EventPosterModal } from "./EventPosterModal";
 import { InvitationQRModal } from "./InvitationQRModal";
 
 type Tab = "table" | "planning" | "dashboard" | "tasks" | "members" | "news";
@@ -68,6 +70,7 @@ export function EventDetailPage() {
   const currentOrg = useOrgStore((s) => s.currentOrg);
   const [promotedInvitations, setPromotedInvitations] = useState<EventInvitation[]>([]);
   const [qrInvitation, setQrInvitation] = useState<EventInvitation | null>(null);
+  const [posterOpen, setPosterOpen] = useState(false);
 
   useEffect(() => {
     fetchEvent(eventId);
@@ -163,6 +166,12 @@ export function EventDetailPage() {
 
       <div className="mb-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
+          <EventPoster
+            src={currentEvent.poster}
+            alt={`Affiche de ${currentEvent.name}`}
+            className="aspect-[2/3] w-28 self-start rounded-md ring-1 ring-gray-200 sm:w-32"
+            onClick={() => setPosterOpen(true)}
+          />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
               <OrgLogo src={currentEvent.organization_logo} className="h-10 w-10" />
@@ -277,6 +286,14 @@ export function EventDetailPage() {
           invitation={qrInvitation}
           onClose={() => setQrInvitation(null)}
           logoUrl={currentEvent.organization_logo}
+        />
+      )}
+
+      {posterOpen && currentEvent.poster && (
+        <EventPosterModal
+          src={currentEvent.poster}
+          alt={`Affiche de ${currentEvent.name}`}
+          onClose={() => setPosterOpen(false)}
         />
       )}
     </div>

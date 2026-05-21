@@ -31,6 +31,13 @@ class Event(TimestampMixin):
     description = models.TextField(blank=True, verbose_name="Description")
     start_date = models.DateTimeField(verbose_name="Date de début")
     end_date = models.DateTimeField(verbose_name="Date de fin")
+    poster = models.ImageField(
+        upload_to="event_posters/",
+        blank=True,
+        null=True,
+        max_length=255,
+        verbose_name="Affiche",
+    )
 
     class Meta:
         verbose_name = "Événement"

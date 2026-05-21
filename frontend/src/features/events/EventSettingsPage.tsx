@@ -2,7 +2,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
   Copy,
+  Image as ImageIcon,
   Link2,
+  Link as LinkIcon,
   Megaphone,
   Plus,
   QrCode,
@@ -11,6 +13,7 @@ import {
   Shield,
   ShieldOff,
   Trash2,
+  Upload,
   UserPlus,
   Users,
 } from "lucide-react";
@@ -24,10 +27,19 @@ import { searchUsers, type UserSearchResult } from "../../api/users";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useEventStore } from "../../stores/eventStore";
-import type { EventInvitation, EventMembership } from "../../types/models";
+import type { Event, EventInvitation, EventMembership } from "../../types/models";
 import { cn } from "../../utils/cn";
 import { copyToClipboard } from "../../utils/copyToClipboard";
+import { pickApiError } from "../../utils/handleApiError";
+import {
+  ACCEPTED_IMAGE_TYPES,
+  ACCEPTED_IMAGE_TYPES_ATTR,
+  imageUrlSchema,
+  type ImageUrlForm,
+} from "../../utils/image";
 import { InvitationQRModal } from "./InvitationQRModal";
+
+const POSTER_MAX_BYTES = 5 * 1024 * 1024;
 
 const schema = z
   .object({
@@ -84,6 +96,154 @@ function statusLabel(inv: EventInvitation) {
 }
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,60}$/;
+
+function PosterSection({
+  event,
+  onChange,
+}: {
+  event: Event;
+  onChange: () => Promise<void>;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
+
+  const {
+    register: regUrl,
+    handleSubmit: handleUrl,
+    reset: resetUrl,
+    formState: { errors: urlErrors, isSubmitting: urlSubmitting },
+  } = useForm<ImageUrlForm>({ resolver: zodResolver(imageUrlSchema) });
+
+  const handleFilePick = () => fileInputRef.current?.click();
+
+  const runPosterAction = async (
+    action: () => Promise<unknown>,
+    successMsg: string,
+    setBusy?: (v: boolean) => void,
+  ) => {
+    setBusy?.(true);
+    try {
+      await action();
+      await onChange();
+      toast.success(successMsg);
+    } catch (err) {
+      toast.error(pickApiError(err));
+    } finally {
+      setBusy?.(false);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      toast.error("Format non supporté (PNG, JPEG, WebP uniquement)");
+      return;
+    }
+    if (file.size > POSTER_MAX_BYTES) {
+      toast.error("Fichier trop volumineux (max 5 Mo)");
+      return;
+    }
+    runPosterAction(
+      () => eventsApi.uploadEventPoster(event.id, file),
+      "Affiche mise à jour",
+      setUploading,
+    );
+  };
+
+  const onUrlSubmit = async (data: ImageUrlForm) => {
+    await runPosterAction(
+      () => eventsApi.setEventPosterFromUrl(event.id, data.url),
+      "Affiche importée",
+    );
+    resetUrl({ url: "" });
+  };
+
+  const handleRemove = () => {
+    if (!confirm("Supprimer l'affiche de cet événement ?")) return;
+    runPosterAction(
+      () => eventsApi.removeEventPoster(event.id),
+      "Affiche supprimée",
+      setRemoving,
+    );
+  };
+
+  return (
+    <div className="space-y-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-gray-200">
+      <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+        <ImageIcon className="h-4 w-4" />
+        Affiche
+      </h3>
+      <div className="flex items-start gap-4">
+        <div className="flex aspect-[2/3] w-28 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 ring-1 ring-gray-200">
+          {event.poster ? (
+            <img
+              src={event.poster}
+              alt={`Affiche ${event.name}`}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <ImageIcon className="h-8 w-8 text-gray-300" />
+          )}
+        </div>
+        <div className="min-w-0 flex-1 space-y-3">
+          <p className="text-xs text-gray-500">
+            PNG, JPEG ou WebP. 5 Mo maximum. Redimensionnée à 1600 px max (ratio conservé).
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_IMAGE_TYPES_ATTR}
+              className="hidden"
+              onChange={handleFileChange}
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleFilePick}
+              isLoading={uploading}
+            >
+              <Upload className="mr-1.5 h-4 w-4" />
+              Choisir un fichier
+            </Button>
+            {event.poster && (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={handleRemove}
+                isLoading={removing}
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" />
+                Supprimer
+              </Button>
+            )}
+          </div>
+          <form
+            onSubmit={handleUrl(onUrlSubmit)}
+            className="flex flex-col gap-2 sm:flex-row sm:items-start"
+          >
+            <div className="flex-1">
+              <Input
+                id="poster_url"
+                placeholder="https://exemple.com/affiche.jpg"
+                error={urlErrors.url?.message}
+                {...regUrl("url")}
+              />
+            </div>
+            <Button type="submit" size="sm" variant="secondary" isLoading={urlSubmitting}>
+              <LinkIcon className="mr-1.5 h-4 w-4" />
+              Importer depuis une URL
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function InvitationsManagement({
   eventId,
@@ -723,6 +883,14 @@ export function EventSettingsPage() {
           Enregistrer
         </Button>
       </form>
+
+      {/* Poster */}
+      <PosterSection
+        event={currentEvent}
+        onChange={async () => {
+          await fetchEvent(eventId);
+        }}
+      />
 
       {/* Members & Admins */}
       <MemberManagement eventId={eventId} />

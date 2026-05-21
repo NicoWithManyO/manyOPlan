@@ -1,15 +1,21 @@
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from apps.accounts.serializers import UserSerializer
 from apps.organizations.models import OrganizationMembership
+from core.image_utils import fetch_remote_image, validate_and_process_image
 from core.permissions import IsEventAdmin, IsEventMember
+
+POSTER_MAX_BYTES = 5 * 1024 * 1024
+POSTER_MAX_DIMENSION = 1600
 
 from .models import Event, EventInvitation, EventMembership
 from .serializers import (
@@ -180,6 +186,56 @@ class EventViewSet(viewsets.ModelViewSet):
                 )
         membership.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True,
+        methods=["post", "delete"],
+        url_path="poster",
+        permission_classes=[permissions.IsAuthenticated, IsEventAdmin],
+        parser_classes=[MultiPartParser, FormParser, JSONParser],
+    )
+    def poster(self, request, pk=None):
+        """Set (POST file or URL) or remove (DELETE) the event poster. Admin only."""
+        event = self.get_object()
+        if request.method == "DELETE":
+            if event.poster:
+                event.poster.delete(save=False)
+                event.poster = None
+                event.save(update_fields=["poster"])
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        try:
+            if "file" in request.FILES:
+                content = validate_and_process_image(
+                    request.FILES["file"],
+                    max_bytes=POSTER_MAX_BYTES,
+                    max_dimension=POSTER_MAX_DIMENSION,
+                )
+            else:
+                url = request.data.get("url")
+                if not url:
+                    return Response(
+                        {"detail": "Fournir un fichier ou une URL."},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                content = fetch_remote_image(
+                    url,
+                    max_bytes=POSTER_MAX_BYTES,
+                    max_dimension=POSTER_MAX_DIMENSION,
+                )
+        except DjangoValidationError as exc:
+            return Response(
+                {"detail": exc.messages[0] if exc.messages else "Image invalide."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if event.poster:
+            event.poster.delete(save=False)
+        event.poster.save(content.name, content, save=False)
+        event.save(update_fields=["poster"])
+        return Response(
+            EventSerializer(event, context=self.get_serializer_context()).data
+        )
 
 
 class EventMembershipViewSet(viewsets.ModelViewSet):

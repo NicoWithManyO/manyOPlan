@@ -2,6 +2,18 @@ import type { FieldValues, Path, UseFormSetError } from "react-hook-form";
 
 type NestedFieldMap = Record<string, string>;
 
+export function pickApiError(err: unknown, fallback = "Erreur"): string {
+  const e = err as {
+    response?: { data?: { detail?: string; file?: string[]; url?: string[] } };
+  };
+  return (
+    e.response?.data?.detail ??
+    e.response?.data?.file?.[0] ??
+    e.response?.data?.url?.[0] ??
+    fallback
+  );
+}
+
 export function handleApiError<T extends FieldValues>(
   err: unknown,
   setError: UseFormSetError<T>,

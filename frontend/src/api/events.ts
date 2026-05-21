@@ -113,3 +113,23 @@ export async function getPromotedEventInvitations(eventId: number) {
   return res.data;
 }
 
+export async function uploadEventPoster(id: number, file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await client.post<Event>(
+    `/events/${id}/poster/`,
+    fd,
+    { headers: { "Content-Type": "multipart/form-data" } },
+  );
+  return res.data;
+}
+
+export async function setEventPosterFromUrl(id: number, url: string) {
+  const res = await client.post<Event>(`/events/${id}/poster/`, { url });
+  return res.data;
+}
+
+export async function removeEventPoster(id: number) {
+  await client.delete(`/events/${id}/poster/`);
+}
+
