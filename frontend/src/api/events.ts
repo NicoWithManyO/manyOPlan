@@ -94,3 +94,22 @@ export async function deleteEventInvitation(
   await client.delete(`/events/${eventId}/invitations/${invitationId}/`);
 }
 
+export async function updateEventInvitation(
+  eventId: number,
+  invitationId: number,
+  data: Partial<Pick<EventInvitation, "is_promoted">>,
+) {
+  const res = await client.patch<EventInvitation>(
+    `/events/${eventId}/invitations/${invitationId}/`,
+    data,
+  );
+  return res.data;
+}
+
+export async function getPromotedEventInvitations(eventId: number) {
+  const res = await client.get<EventInvitation[]>(
+    `/events/${eventId}/invitations/promoted/`,
+  );
+  return res.data;
+}
+

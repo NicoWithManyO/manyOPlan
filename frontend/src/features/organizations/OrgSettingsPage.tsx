@@ -21,6 +21,7 @@ import { Input } from "../../components/ui/Input";
 import { useOrgStore } from "../../stores/orgStore";
 import type { OrganizationMembership } from "../../types/models";
 import { cn } from "../../utils/cn";
+import { copyToClipboard } from "../../utils/copyToClipboard";
 
 const nameSchema = z.object({
   name: z.string().min(1, "Nom requis").max(120, "120 caractères maximum"),
@@ -270,14 +271,9 @@ export function OrgSettingsPage() {
     }
   };
 
-  const handleCopyCode = async () => {
+  const handleCopyCode = () => {
     if (!org.invite_code) return;
-    try {
-      await navigator.clipboard.writeText(org.invite_code);
-      toast.success("Code copié");
-    } catch {
-      toast.error("Impossible de copier");
-    }
+    copyToClipboard(org.invite_code, "Code copié");
   };
 
   return (

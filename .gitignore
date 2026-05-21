@@ -15,8 +15,8 @@ venv/
 ENV/
 
 # Django
-db.sqlite3
-db.sqlite3-journal
+*.sqlite3
+*.sqlite3-journal
 *.log
 media/
 staticfiles/

@@ -108,6 +108,7 @@ export interface EventInvitation {
   use_count: number;
   is_valid: boolean;
   invalid_reason: string | null;
+  is_promoted: boolean;
 }
 
 export interface EventInvitationCreateData {

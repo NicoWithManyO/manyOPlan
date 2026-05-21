@@ -7,6 +7,7 @@ import {
   Newspaper,
   PieChart,
   Plus,
+  QrCode,
   Search,
   Settings,
   UserPlus,
@@ -27,7 +28,9 @@ import { useAssignmentStore } from "../../stores/assignmentStore";
 import { useEventStore } from "../../stores/eventStore";
 import { useOrgStore } from "../../stores/orgStore";
 import { useTaskStore } from "../../stores/taskStore";
+import type { EventInvitation } from "../../types/models";
 import { cn } from "../../utils/cn";
+import { InvitationQRModal } from "./InvitationQRModal";
 
 type Tab = "table" | "planning" | "dashboard" | "tasks" | "members" | "news";
 
@@ -62,6 +65,8 @@ export function EventDetailPage() {
   const { fetchTasks, clear: clearTasks } = useTaskStore();
   const { fetchAssignments, fetchMyAssignments, clear: clearAssignments } = useAssignmentStore();
   const currentOrg = useOrgStore((s) => s.currentOrg);
+  const [promotedInvitations, setPromotedInvitations] = useState<EventInvitation[]>([]);
+  const [qrInvitation, setQrInvitation] = useState<EventInvitation | null>(null);
 
   useEffect(() => {
     fetchEvent(eventId);
@@ -75,6 +80,34 @@ export function EventDetailPage() {
       clearAssignments();
     };
   }, [eventId, fetchEvent, fetchMembers, fetchTasks, fetchAssignments, fetchMyAssignments, clearCurrent, clearTasks, clearAssignments]);
+
+  const isOrgAdmin =
+    !!currentEvent &&
+    currentOrg?.id === currentEvent.organization &&
+    currentOrg?.my_role === "admin";
+  const isAdmin =
+    !!currentEvent && (currentEvent.my_role === "admin" || isOrgAdmin);
+  const isMember =
+    !!currentEvent && (currentEvent.my_role !== null || isOrgAdmin);
+
+  useEffect(() => {
+    if (!isMember) {
+      setPromotedInvitations([]);
+      return;
+    }
+    let cancelled = false;
+    eventsApi
+      .getPromotedEventInvitations(eventId)
+      .then((data) => {
+        if (!cancelled) setPromotedInvitations(data);
+      })
+      .catch(() => {
+        if (!cancelled) setPromotedInvitations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId, isMember]);
 
   if (isLoading && !currentEvent) {
     return (
@@ -90,10 +123,6 @@ export function EventDetailPage() {
       <div className="text-center text-gray-600">Événement introuvable.</div>
     );
   }
-
-  const isOrgAdmin = currentOrg?.id === currentEvent.organization && currentOrg?.my_role === "admin";
-  const isAdmin = currentEvent.my_role === "admin" || isOrgAdmin;
-  const isMember = currentEvent.my_role !== null || isOrgAdmin;
 
   const handleJoin = async () => {
     try {
@@ -132,7 +161,7 @@ export function EventDetailPage() {
       </Link>
 
       <div className="mb-6 rounded-xl bg-white p-4 shadow-sm ring-1 ring-gray-200 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
           <div className="min-w-0 flex-1">
             <h2 className="text-2xl font-bold text-gray-900">
               {currentEvent.name}
@@ -159,24 +188,42 @@ export function EventDetailPage() {
             </div>
           </div>
 
-          <div className="flex shrink-0 gap-2">
-            {!isMember && (
-              <Button onClick={handleJoin} size="md">
-                <UserPlus className="mr-1.5 h-4 w-4" />
-                Rejoindre
-              </Button>
-            )}
-            {isMember && !isAdmin && (
-              <Button onClick={handleLeave} variant="ghost" size="sm">
-                <LogOut className="mr-1.5 h-4 w-4" />
-                Quitter
-              </Button>
-            )}
-            {isAdmin && (
-              <Button variant="secondary" size="sm" onClick={() => navigate(`/events/${eventId}/settings`)}>
-                <Settings className="mr-1.5 h-4 w-4" />
-                Paramètres
-              </Button>
+          <div className="flex shrink-0 flex-col items-end justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {!isMember && (
+                <Button onClick={handleJoin} size="md">
+                  <UserPlus className="mr-1.5 h-4 w-4" />
+                  Rejoindre
+                </Button>
+              )}
+              {isMember && !isAdmin && (
+                <Button onClick={handleLeave} variant="ghost" size="sm">
+                  <LogOut className="mr-1.5 h-4 w-4" />
+                  Quitter
+                </Button>
+              )}
+              {isAdmin && (
+                <Button variant="secondary" size="sm" onClick={() => navigate(`/events/${eventId}/settings`)}>
+                  <Settings className="mr-1.5 h-4 w-4" />
+                  Paramètres
+                </Button>
+              )}
+            </div>
+            {isMember && promotedInvitations.length > 0 && (
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {promotedInvitations.map((inv) => (
+                  <button
+                    key={inv.id}
+                    type="button"
+                    onClick={() => setQrInvitation(inv)}
+                    className="inline-flex items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                    title={`Partager : ${inv.label || "lien d'invitation"}`}
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                    {inv.label ? `QR · ${inv.label}` : "QR"}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -225,6 +272,13 @@ export function EventDetailPage() {
           <NewsPage eventId={eventId} isAdmin={isAdmin} />
         )}
       </div>
+
+      {qrInvitation && (
+        <InvitationQRModal
+          invitation={qrInvitation}
+          onClose={() => setQrInvitation(null)}
+        />
+      )}
     </div>
   );
 }

@@ -3,7 +3,9 @@ import {
   ArrowLeft,
   Copy,
   Link2,
+  Megaphone,
   Plus,
+  QrCode,
   Save,
   Search,
   Shield,
@@ -24,6 +26,8 @@ import { Input } from "../../components/ui/Input";
 import { useEventStore } from "../../stores/eventStore";
 import type { EventInvitation, EventMembership } from "../../types/models";
 import { cn } from "../../utils/cn";
+import { copyToClipboard } from "../../utils/copyToClipboard";
+import { InvitationQRModal } from "./InvitationQRModal";
 
 const schema = z
   .object({
@@ -91,6 +95,7 @@ function InvitationsManagement({ eventId }: { eventId: number }) {
   const [slugError, setSlugError] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState("");
   const [maxUses, setMaxUses] = useState("");
+  const [qrInvitation, setQrInvitation] = useState<EventInvitation | null>(null);
 
   const fetchInvitations = async () => {
     setLoading(true);
@@ -157,13 +162,25 @@ function InvitationsManagement({ eventId }: { eventId: number }) {
     }
   };
 
-  const handleCopy = async (token: string) => {
-    const url = `${window.location.origin}/invite/${token}`;
+  const handleCopy = (token: string) => {
+    copyToClipboard(`${window.location.origin}/invite/${token}`, "Lien copié");
+  };
+
+  const handleTogglePromote = async (inv: EventInvitation) => {
+    const next = !inv.is_promoted;
+    setInvitations((list) =>
+      list.map((i) => (i.id === inv.id ? { ...i, is_promoted: next } : i)),
+    );
     try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Lien copié");
+      await eventsApi.updateEventInvitation(eventId, inv.id, {
+        is_promoted: next,
+      });
+      toast.success(next ? "Lien promu" : "Promotion retirée");
     } catch {
-      toast.error("Impossible de copier");
+      setInvitations((list) =>
+        list.map((i) => (i.id === inv.id ? { ...i, is_promoted: !next } : i)),
+      );
+      toast.error("Erreur");
     }
   };
 
@@ -276,7 +293,7 @@ function InvitationsManagement({ eventId }: { eventId: number }) {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-medium text-gray-900 truncate">
                         {inv.label || "Sans libellé"}
                       </p>
@@ -288,6 +305,24 @@ function InvitationsManagement({ eventId }: { eventId: number }) {
                       >
                         {status.label}
                       </span>
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePromote(inv)}
+                        className={cn(
+                          "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                          inv.is_promoted
+                            ? "bg-indigo-600 text-white hover:bg-indigo-700"
+                            : "bg-gray-100 text-gray-600 hover:bg-gray-200",
+                        )}
+                        title={
+                          inv.is_promoted
+                            ? "Lien visible par tous les membres dans l'événement"
+                            : "Rendre ce lien visible par tous les membres dans l'événement"
+                        }
+                      >
+                        <Megaphone className="h-3 w-3" />
+                        {inv.is_promoted ? "Promu" : "Promouvoir"}
+                      </button>
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
                       {inv.use_count}
@@ -325,11 +360,27 @@ function InvitationsManagement({ eventId }: { eventId: number }) {
                     <Copy className="h-3.5 w-3.5" />
                     Copier
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setQrInvitation(inv)}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700 hover:bg-indigo-100"
+                    title="Afficher le QR code"
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                    QR
+                  </button>
                 </div>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {qrInvitation && (
+        <InvitationQRModal
+          invitation={qrInvitation}
+          onClose={() => setQrInvitation(null)}
+        />
       )}
     </div>
   );
