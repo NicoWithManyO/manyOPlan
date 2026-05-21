@@ -276,6 +276,7 @@ export function EventDetailPage() {
         <InvitationQRModal
           invitation={qrInvitation}
           onClose={() => setQrInvitation(null)}
+          logoUrl={currentEvent.organization_logo}
         />
       )}
     </div>

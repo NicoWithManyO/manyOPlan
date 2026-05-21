@@ -6,12 +6,16 @@ import { Button } from "../../components/ui/Button";
 import type { EventInvitation } from "../../types/models";
 import { copyToClipboard } from "../../utils/copyToClipboard";
 
+const QR_SIZE = 256;
+const QR_LOGO_SIZE = Math.round(QR_SIZE * 0.18);
+
 interface Props {
   invitation: EventInvitation;
   onClose: () => void;
+  logoUrl?: string | null;
 }
 
-export function InvitationQRModal({ invitation, onClose }: Props) {
+export function InvitationQRModal({ invitation, onClose, logoUrl }: Props) {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
   const url = `${window.location.origin}/invite/${invitation.token}`;
   const fileSlug =
@@ -35,7 +39,13 @@ export function InvitationQRModal({ invitation, onClose }: Props) {
       toast.error("QR indisponible");
       return;
     }
-    const dataUrl = canvas.toDataURL("image/png");
+    let dataUrl: string;
+    try {
+      dataUrl = canvas.toDataURL("image/png");
+    } catch {
+      toast.error("QR indisponible");
+      return;
+    }
     const a = document.createElement("a");
     a.href = dataUrl;
     a.download = `invite-${fileSlug}.png`;
@@ -75,7 +85,22 @@ export function InvitationQRModal({ invitation, onClose }: Props) {
           ref={canvasWrapperRef}
           className="mx-auto mb-4 flex w-fit items-center justify-center rounded-lg border border-gray-200 bg-white p-3"
         >
-          <QRCodeCanvas value={url} size={256} level="M" />
+          <QRCodeCanvas
+            value={url}
+            size={QR_SIZE}
+            level={logoUrl ? "H" : "M"}
+            imageSettings={
+              logoUrl
+                ? {
+                    src: logoUrl,
+                    height: QR_LOGO_SIZE,
+                    width: QR_LOGO_SIZE,
+                    excavate: true,
+                    crossOrigin: "anonymous",
+                  }
+                : undefined
+            }
+          />
         </div>
         <input
           readOnly

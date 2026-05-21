@@ -85,7 +85,13 @@ function statusLabel(inv: EventInvitation) {
 
 const SLUG_RE = /^[A-Za-z0-9_-]{2,60}$/;
 
-function InvitationsManagement({ eventId }: { eventId: number }) {
+function InvitationsManagement({
+  eventId,
+  organizationLogo,
+}: {
+  eventId: number;
+  organizationLogo: string | null;
+}) {
   const [invitations, setInvitations] = useState<EventInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -380,6 +386,7 @@ function InvitationsManagement({ eventId }: { eventId: number }) {
         <InvitationQRModal
           invitation={qrInvitation}
           onClose={() => setQrInvitation(null)}
+          logoUrl={organizationLogo}
         />
       )}
     </div>
@@ -720,7 +727,10 @@ export function EventSettingsPage() {
       {/* Members & Admins */}
       <MemberManagement eventId={eventId} />
 
-      <InvitationsManagement eventId={eventId} />
+      <InvitationsManagement
+        eventId={eventId}
+        organizationLogo={currentEvent.organization_logo}
+      />
 
       {/* Danger zone */}
       <div className="rounded-xl border border-red-200 bg-red-50 p-6">
