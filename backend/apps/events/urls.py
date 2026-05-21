@@ -20,6 +20,11 @@ urlpatterns = [
         name="event-invitations",
     ),
     path(
+        "<int:event_pk>/invitations/promoted/",
+        views.EventPromotedInvitationsView.as_view(),
+        name="event-invitations-promoted",
+    ),
+    path(
         "<int:event_pk>/invitations/<int:pk>/",
         views.EventInvitationDetailView.as_view(),
         name="event-invitation-detail",

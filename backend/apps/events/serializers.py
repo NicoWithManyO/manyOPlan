@@ -135,6 +135,7 @@ class EventInvitationSerializer(serializers.ModelSerializer):
             "use_count",
             "is_valid",
             "invalid_reason",
+            "is_promoted",
         )
         read_only_fields = ("id", "created_at", "use_count")
 

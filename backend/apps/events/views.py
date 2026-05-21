@@ -212,12 +212,25 @@ class EventInvitationListCreateView(generics.ListCreateAPIView):
         serializer.save(event_id=self.kwargs["event_pk"], created_by=self.request.user)
 
 
-class EventInvitationDetailView(generics.DestroyAPIView):
+class EventInvitationDetailView(generics.UpdateAPIView, generics.DestroyAPIView):
     serializer_class = EventInvitationSerializer
     permission_classes = (permissions.IsAuthenticated, IsEventAdmin)
+    http_method_names = ["patch", "delete", "options", "head"]
 
     def get_queryset(self):
         return EventInvitation.objects.filter(event_id=self.kwargs["event_pk"])
+
+
+class EventPromotedInvitationsView(generics.ListAPIView):
+    serializer_class = EventInvitationSerializer
+    permission_classes = (permissions.IsAuthenticated, IsEventMember)
+    pagination_class = None
+
+    def get_queryset(self):
+        return EventInvitation.objects.filter(
+            event_id=self.kwargs["event_pk"],
+            is_promoted=True,
+        )
 
 
 class InvitationPreviewView(APIView):

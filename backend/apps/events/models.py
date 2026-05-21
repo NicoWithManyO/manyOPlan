@@ -90,6 +90,7 @@ class EventInvitation(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
     max_uses = models.PositiveIntegerField(null=True, blank=True)
     use_count = models.PositiveIntegerField(default=0)
+    is_promoted = models.BooleanField(default=False)
 
     class Meta:
         verbose_name = "Invitation événement"
