@@ -11,28 +11,14 @@ import { useOrgStore } from "../../stores/orgStore";
 import { cn } from "../../utils/cn";
 import { handleApiError } from "../../utils/handleApiError";
 import { PersonalFields } from "./PersonalFields";
-import { PrivacyConsent, privacyConsentField } from "./PrivacyConsent";
+import { PrivacyConsent } from "./PrivacyConsent";
+import { signupSchema } from "./signupSchema";
 
 type Mode = "create_org" | "join_org";
 
-const baseSchema = z
-  .object({
-    email: z.string().email("Email invalide"),
-    first_name: z.string().min(1, "Prénom requis"),
-    last_name: z.string().min(1, "Nom requis"),
-    nickname: z.string().max(60, "60 caractères maximum").optional(),
-    password: z.string().min(8, "8 caractères minimum"),
-    password_confirm: z.string(),
-    ...privacyConsentField,
-  })
-  .refine((d) => d.password === d.password_confirm, {
-    message: "Les mots de passe ne correspondent pas",
-    path: ["password_confirm"],
-  });
-
 const inviteCodeRegex = /^[A-Za-z0-9_-]{4,32}$/;
 
-const createOrgSchema = baseSchema.and(
+const createOrgSchema = signupSchema.and(
   z.object({
     org_name: z.string().min(1, "Nom requis").max(120),
     invite_code: z
@@ -44,7 +30,7 @@ const createOrgSchema = baseSchema.and(
   }),
 );
 
-const joinOrgSchema = baseSchema.and(
+const joinOrgSchema = signupSchema.and(
   z.object({
     invite_code: z
       .string()

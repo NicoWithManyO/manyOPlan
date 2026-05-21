@@ -1,10 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { CalendarDays, Users } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
-import { z } from "zod";
 import { acceptInvitation, getInvitationPreview } from "../../api/invitations";
 import { Button } from "../../components/ui/Button";
 import { AuthShell } from "../../layouts/AuthShell";
@@ -12,24 +11,13 @@ import { useAuthStore } from "../../stores/authStore";
 import type { InvitationPreview } from "../../types/models";
 import { handleApiError } from "../../utils/handleApiError";
 import { PersonalFields } from "../auth/PersonalFields";
-import { PrivacyConsent, privacyConsentField } from "../auth/PrivacyConsent";
-
-const signupSchema = z
-  .object({
-    email: z.string().email("Email invalide"),
-    first_name: z.string().min(1, "Prénom requis"),
-    last_name: z.string().min(1, "Nom requis"),
-    nickname: z.string().max(60, "60 caractères maximum").optional(),
-    password: z.string().min(8, "8 caractères minimum"),
-    password_confirm: z.string(),
-    ...privacyConsentField,
-  })
-  .refine((d) => d.password === d.password_confirm, {
-    message: "Les mots de passe ne correspondent pas",
-    path: ["password_confirm"],
-  });
-
-type SignupFormData = z.infer<typeof signupSchema>;
+import { PrivacyConsent } from "../auth/PrivacyConsent";
+import { signupSchema, type SignupFormData } from "../auth/signupSchema";
+import {
+  InvitationErrorState,
+  InvitationLoadingState,
+} from "./PublicInvitationStates";
+import { invalidReasonLabel, useInvitationPreview } from "./publicShared";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("fr-FR", {
@@ -41,63 +29,17 @@ function formatDate(dateStr: string) {
   });
 }
 
-function invalidReasonLabel(reason: string | null | undefined): string {
-  switch (reason) {
-    case "expired":
-      return "Cette invitation a expiré.";
-    case "exhausted":
-      return "Cette invitation a atteint sa limite d'utilisations.";
-    case "inactive":
-      return "Cette invitation a été désactivée.";
-    default:
-      return "Cette invitation n'est plus valide.";
-  }
-}
-
 export function InvitationPage() {
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  const [preview, setPreview] = useState<InvitationPreview | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { loading, preview, loadError } = useInvitationPreview<InvitationPreview>(
+    token,
+    getInvitationPreview,
+  );
 
-  useEffect(() => {
-    if (!token) {
-      setLoadError("Lien invalide.");
-      setLoading(false);
-      return;
-    }
-    const ctrl = new AbortController();
-    (async () => {
-      try {
-        const data = await getInvitationPreview(token);
-        if (!ctrl.signal.aborted) setPreview(data);
-      } catch (err: unknown) {
-        if (ctrl.signal.aborted) return;
-        const error = err as { response?: { status?: number } };
-        setLoadError(
-          error.response?.status === 404
-            ? "Invitation introuvable."
-            : "Impossible de charger l'invitation.",
-        );
-      } finally {
-        if (!ctrl.signal.aborted) setLoading(false);
-      }
-    })();
-    return () => ctrl.abort();
-  }, [token]);
-
-  if (loading) {
-    return (
-      <AuthShell>
-        <div className="flex justify-center py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-        </div>
-      </AuthShell>
-    );
-  }
+  if (loading) return <InvitationLoadingState />;
 
   if (loadError || !preview) {
     return <InvitationErrorState message={loadError ?? "Invitation indisponible."} />;
@@ -124,18 +66,6 @@ export function InvitationPage() {
           onJoined={(eventId) => navigate(`/events/${eventId}`)}
         />
       )}
-    </AuthShell>
-  );
-}
-
-function InvitationErrorState({ message }: { message: string }) {
-  return (
-    <AuthShell>
-      <h2 className="mb-2 text-xl font-semibold text-gray-900">Invitation</h2>
-      <p className="mb-4 text-sm text-red-700">{message}</p>
-      <Link to="/" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-        Retour à l'accueil
-      </Link>
     </AuthShell>
   );
 }
