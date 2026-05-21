@@ -1,13 +1,32 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.permissions import IsAdminUser
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken, OutstandingToken
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.assignments.models import Assignment
+from apps.assignments.serializers import MyAssignmentSerializer
+from apps.events.models import EventInvitation
+from apps.events.serializers import EventInvitationSerializer
+from apps.messaging.models import Message
+from apps.messaging.serializers import MessageSerializer
+from apps.news.models import News
+from apps.news.serializers import NewsSerializer
+from apps.organizations.models import Organization
 from apps.organizations.serializers import OrganizationSerializer
 
-from .serializers import AdminUserSerializer, ChangePasswordSerializer, RegisterSerializer, UserSerializer
+from .serializers import (
+    AdminUserSerializer,
+    ChangePasswordSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
+
+EXPORT_MAX_ROWS = 10000
 
 User = get_user_model()
 
@@ -188,3 +207,96 @@ class LogoutView(APIView):
                 {"detail": "Le token refresh est requis."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+
+class ExportMyDataView(APIView):
+    """RGPD art. 15/20 — full export of the current user's personal data as JSON."""
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request):
+        user = request.user
+        admin_data = AdminUserSerializer(user).data
+
+        organizations_created = [
+            OrganizationSerializer(o, context={"request": request}).data
+            for o in Organization.objects.filter(created_by=user)
+        ]
+
+        assignments_qs = (
+            Assignment.objects.filter(user=user)
+            .select_related("slot__task__event__organization")
+            .order_by("-start_date")[:EXPORT_MAX_ROWS]
+        )
+        messages_sent_qs = (
+            Message.objects.filter(sender=user)
+            .order_by("-created_at")[:EXPORT_MAX_ROWS]
+        )
+        messages_received_qs = (
+            Message.objects.filter(receiver=user)
+            .order_by("-created_at")[:EXPORT_MAX_ROWS]
+        )
+        news_qs = News.objects.filter(author=user).order_by("-created_at")[:EXPORT_MAX_ROWS]
+        invitations_qs = EventInvitation.objects.filter(created_by=user).order_by(
+            "-created_at"
+        )[:EXPORT_MAX_ROWS]
+
+        return Response(
+            {
+                "exported_at": timezone.now().isoformat(),
+                "export_row_cap": EXPORT_MAX_ROWS,
+                "profile": admin_data,
+                "organizations_created": organizations_created,
+                "assignments": MyAssignmentSerializer(assignments_qs, many=True).data,
+                "messages_sent": MessageSerializer(messages_sent_qs, many=True).data,
+                "messages_received": MessageSerializer(messages_received_qs, many=True).data,
+                "authored_news": NewsSerializer(news_qs, many=True).data,
+                "invitations_created": EventInvitationSerializer(
+                    invitations_qs, many=True
+                ).data,
+            }
+        )
+
+
+class DeleteMyAccountView(APIView):
+    """RGPD art. 17 — anonymise and deactivate the current user's account.
+
+    We anonymise instead of hard-deleting to preserve referential integrity
+    of past assignments, messages and news that other users may still see.
+    """
+
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def delete(self, request):
+        user = request.user
+        password = request.data.get("password")
+
+        if not user.is_placeholder and (
+            not password or not user.check_password(password)
+        ):
+            return Response(
+                {"password": ["Mot de passe requis pour confirmer la suppression."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            BlacklistedToken.objects.bulk_create(
+                [
+                    BlacklistedToken(token=t)
+                    for t in OutstandingToken.objects.filter(user=user)
+                ],
+                ignore_conflicts=True,
+            )
+
+            Message.objects.filter(sender=user).update(content="[message supprimé]")
+
+            user.username = f"deleted_user_{user.id}"
+            user.email = ""
+            user.first_name = "Compte"
+            user.last_name = "supprimé"
+            user.nickname = ""
+            user.is_active = False
+            user.set_unusable_password()
+            user.save()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

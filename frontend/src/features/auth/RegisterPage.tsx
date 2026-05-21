@@ -11,6 +11,7 @@ import { useOrgStore } from "../../stores/orgStore";
 import { cn } from "../../utils/cn";
 import { handleApiError } from "../../utils/handleApiError";
 import { PersonalFields } from "./PersonalFields";
+import { PrivacyConsent, privacyConsentField } from "./PrivacyConsent";
 
 type Mode = "create_org" | "join_org";
 
@@ -22,6 +23,7 @@ const baseSchema = z
     nickname: z.string().max(60, "60 caractères maximum").optional(),
     password: z.string().min(8, "8 caractères minimum"),
     password_confirm: z.string(),
+    ...privacyConsentField,
   })
   .refine((d) => d.password === d.password_confirm, {
     message: "Les mots de passe ne correspondent pas",
@@ -210,6 +212,10 @@ function CreateOrgForm({
           Générer un code aléatoire
         </button>
       </div>
+      <PrivacyConsent
+        register={register("privacy_consent")}
+        error={errors.privacy_consent?.message}
+      />
       {errors.root && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
           {errors.root.message}
@@ -269,6 +275,10 @@ function JoinOrgForm({
         placeholder="Demandez le code à l'admin de votre association"
         error={errors.invite_code?.message}
         {...register("invite_code")}
+      />
+      <PrivacyConsent
+        register={register("privacy_consent")}
+        error={errors.privacy_consent?.message}
       />
       {errors.root && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">

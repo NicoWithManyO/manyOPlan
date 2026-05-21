@@ -3,7 +3,7 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = "django-insecure-change-me-in-production"
+# SECRET_KEY is defined in env-specific settings (development.py / production.py)
 
 INSTALLED_APPS = [
     "django.contrib.admin",

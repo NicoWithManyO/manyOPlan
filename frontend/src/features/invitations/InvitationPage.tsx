@@ -12,6 +12,7 @@ import { useAuthStore } from "../../stores/authStore";
 import type { InvitationPreview } from "../../types/models";
 import { handleApiError } from "../../utils/handleApiError";
 import { PersonalFields } from "../auth/PersonalFields";
+import { PrivacyConsent, privacyConsentField } from "../auth/PrivacyConsent";
 
 const signupSchema = z
   .object({
@@ -21,6 +22,7 @@ const signupSchema = z
     nickname: z.string().max(60, "60 caractères maximum").optional(),
     password: z.string().min(8, "8 caractères minimum"),
     password_confirm: z.string(),
+    ...privacyConsentField,
   })
   .refine((d) => d.password === d.password_confirm, {
     message: "Les mots de passe ne correspondent pas",
@@ -249,6 +251,10 @@ function SignupBlock({
       </p>
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <PersonalFields register={register} errors={errors} />
+        <PrivacyConsent
+          register={register("privacy_consent")}
+          error={errors.privacy_consent?.message}
+        />
         {errors.root && (
           <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
             {errors.root.message}

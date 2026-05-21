@@ -8,3 +8,12 @@ export async function changePassword(data: {
   const res = await client.post("/auth/change-password/", data);
   return res.data;
 }
+
+export async function exportMyData() {
+  const res = await client.get("/auth/me/export/");
+  return res.data;
+}
+
+export async function deleteMyAccount(password: string) {
+  await client.delete("/auth/me/delete/", { data: { password } });
+}

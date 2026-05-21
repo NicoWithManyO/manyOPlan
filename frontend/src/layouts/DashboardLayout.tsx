@@ -11,6 +11,7 @@ import {
 import { useEffect, useState } from "react";
 import { Navigate, NavLink, Outlet } from "react-router-dom";
 import { OrgSwitcher } from "../components/OrgSwitcher";
+import { PrivacyFooter } from "../components/shared/PrivacyFooter";
 import { useAuthStore } from "../stores/authStore";
 import { useOrgStore } from "../stores/orgStore";
 import { cn } from "../utils/cn";
@@ -185,6 +186,9 @@ export function DashboardLayout() {
         <div className="px-4 py-6">
           <Outlet />
         </div>
+        <footer className="border-t border-gray-200 px-4 py-4">
+          <PrivacyFooter />
+        </footer>
       </main>
 
       {/* Mobile bottom nav */}
