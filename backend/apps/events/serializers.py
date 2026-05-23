@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from apps.organizations.models import Organization, OrganizationMembership
+from core.serializers import InvitationDecorationMixin
 from core.validators import check_password_match, normalize_and_check_unique_email
 
 from .models import Event, EventInvitation, EventMembership
@@ -125,7 +126,7 @@ class JoinEventSerializer(serializers.Serializer):
     pass
 
 
-class EventInvitationSerializer(serializers.ModelSerializer):
+class EventInvitationSerializer(InvitationDecorationMixin, serializers.ModelSerializer):
     token = serializers.CharField(required=False, allow_blank=True, max_length=60)
     is_valid = serializers.BooleanField(read_only=True)
     invalid_reason = serializers.CharField(read_only=True, allow_null=True)
@@ -144,6 +145,7 @@ class EventInvitationSerializer(serializers.ModelSerializer):
             "invalid_reason",
             "is_promoted",
             "is_active",
+            *InvitationDecorationMixin.DECORATION_FIELDS,
         )
         read_only_fields = ("id", "created_at", "use_count")
 

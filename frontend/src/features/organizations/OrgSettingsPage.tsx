@@ -1,7 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   ArrowLeft,
-  Building2,
   Copy,
   Image as ImageIcon,
   KeyRound,
@@ -20,6 +19,7 @@ import { Link, Navigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { z } from "zod";
 import * as orgsApi from "../../api/organizations";
+import { OrgLogoBox } from "../../components/OrgLogoBox";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
 import { useOrgStore } from "../../stores/orgStore";
@@ -121,17 +121,7 @@ function LogoSection({
         Logo
       </h3>
       <div className="flex items-start gap-4">
-        <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 ring-1 ring-gray-200">
-          {org.logo ? (
-            <img
-              src={org.logo}
-              alt={`Logo ${org.name}`}
-              className="h-full w-full object-contain p-1"
-            />
-          ) : (
-            <Building2 className="h-10 w-10 text-gray-300" />
-          )}
-        </div>
+        <OrgLogoBox src={org.logo} alt={`Logo ${org.name}`} size="lg" />
         <div className="min-w-0 flex-1 space-y-3">
           <p className="text-xs text-gray-500">
             PNG, JPEG ou WebP. 2 Mo maximum. Redimensionnée à 512 px max (ratio conservé).

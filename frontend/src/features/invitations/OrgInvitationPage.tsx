@@ -1,5 +1,4 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -8,6 +7,7 @@ import {
   acceptOrgInvitation,
   getOrgInvitationPreview,
 } from "../../api/invitations";
+import { OrgLogoBox } from "../../components/OrgLogoBox";
 import { Button } from "../../components/ui/Button";
 import { AuthShell } from "../../layouts/AuthShell";
 import { useAuthStore } from "../../stores/authStore";
@@ -63,17 +63,10 @@ export function OrgInvitationPage() {
 function OrgInvitationHeader({ preview }: { preview: OrgInvitationPreview }) {
   return (
     <div className="mb-5 flex items-start gap-3">
-      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 ring-1 ring-gray-200">
-        {preview.organization_logo ? (
-          <img
-            src={preview.organization_logo}
-            alt={`Logo ${preview.organization_name}`}
-            className="h-full w-full object-contain p-1"
-          />
-        ) : (
-          <Building2 className="h-7 w-7 text-gray-300" />
-        )}
-      </div>
+      <OrgLogoBox
+        src={preview.organization_logo}
+        alt={`Logo ${preview.organization_name}`}
+      />
       <div className="min-w-0">
         <p className="text-xs uppercase tracking-wider text-indigo-600">
           Invitation

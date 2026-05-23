@@ -7,6 +7,7 @@ import { useEventStore } from "../../stores/eventStore";
 import { useOrgStore } from "../../stores/orgStore";
 import type { Event } from "../../types/models";
 import { cn } from "../../utils/cn";
+import { pluralFr } from "../../utils/pluralFr";
 import { OrgHeaderBand } from "../organizations/OrgHeaderBand";
 import { EventPosterModal } from "./EventPosterModal";
 import { MyEngagements } from "./MyEngagements";
@@ -77,7 +78,7 @@ function EventCard({ event }: { event: Event }) {
             </span>
             <span className="flex items-center gap-1">
               <Users className="h-3.5 w-3.5" />
-              {event.member_count} membre{event.member_count > 1 ? "s" : ""}
+              {pluralFr(event.member_count, "membre")}
             </span>
           </div>
 

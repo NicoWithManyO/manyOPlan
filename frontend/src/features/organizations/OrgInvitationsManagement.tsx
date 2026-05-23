@@ -11,13 +11,21 @@ import { toast } from "sonner";
 import * as orgsApi from "../../api/organizations";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import type { OrganizationInvitation } from "../../types/models";
+import type {
+  InvitationDecoration,
+  OrganizationInvitation,
+} from "../../types/models";
 import { cn } from "../../utils/cn";
 import { copyToClipboard } from "../../utils/copyToClipboard";
+import { pluralSuffix } from "../../utils/pluralFr";
+import { InvitationDecorationPicker } from "../invitations/InvitationDecorationPicker";
 import { InvitationEditModal } from "../invitations/InvitationEditModal";
 import { InvitationQRModal } from "../invitations/InvitationQRModal";
 import {
+  DECORATION_TEXT,
+  DEFAULT_DECORATION,
   SLUG_RE,
+  buildQRCenter,
   formatDateShort,
   isManuallyToggleable,
   statusLabel,
@@ -38,6 +46,7 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
   const [slugError, setSlugError] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState("");
   const [maxUses, setMaxUses] = useState("");
+  const [decoration, setDecoration] = useState<InvitationDecoration>(DEFAULT_DECORATION);
   const [qrInvitation, setQrInvitation] = useState<OrganizationInvitation | null>(null);
   const [editingInvitation, setEditingInvitation] =
     useState<OrganizationInvitation | null>(null);
@@ -67,6 +76,11 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
       setSlugError("2-60 caractères : lettres, chiffres, tirets, underscores.");
       return;
     }
+    const decorationText = decoration.decoration_text.trim();
+    if (decoration.decoration_type === DECORATION_TEXT && !decorationText) {
+      toast.error("Saisis un texte ou choisis le logo.");
+      return;
+    }
     setCreating(true);
     try {
       const created = await orgsApi.createOrgInvitation(orgId, {
@@ -74,6 +88,10 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
         token: slug || undefined,
         expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
         max_uses: maxUses ? Number(maxUses) : null,
+        decoration_type: decoration.decoration_type,
+        decoration_text: decorationText,
+        decoration_bg_color: decoration.decoration_bg_color,
+        decoration_text_color: decoration.decoration_text_color,
       });
       setInvitations((list) => [created, ...list]);
       toast.success("Invitation créée");
@@ -81,6 +99,7 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
       setCustomSlug("");
       setExpiresAt("");
       setMaxUses("");
+      setDecoration(DEFAULT_DECORATION);
       setShowForm(false);
     } catch (err: unknown) {
       const error = err as {
@@ -220,6 +239,11 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
               onChange={(e) => setMaxUses(e.target.value)}
             />
           </div>
+          <InvitationDecorationPicker
+            value={decoration}
+            onChange={setDecoration}
+            hasOrgLogo={!!organizationLogo}
+          />
           <div className="flex gap-2">
             <Button type="submit" size="sm" isLoading={creating}>
               Créer le lien
@@ -235,6 +259,7 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
                 setSlugError(null);
                 setExpiresAt("");
                 setMaxUses("");
+                setDecoration(DEFAULT_DECORATION);
               }}
             >
               Annuler
@@ -318,8 +343,7 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
                     </div>
                     <p className="mt-1 text-xs text-gray-500">
                       {inv.use_count}
-                      {inv.max_uses != null ? ` / ${inv.max_uses}` : ""} utilisation
-                      {inv.use_count > 1 ? "s" : ""}
+                      {inv.max_uses != null ? ` / ${inv.max_uses}` : ""} utilisation{pluralSuffix(inv.use_count)}
                       {inv.expires_at && (
                         <>
                           {" · expire le "}
@@ -376,7 +400,7 @@ export function OrgInvitationsManagement({ orgId, organizationLogo }: Props) {
           description="Scannez ou partagez ce QR code pour rejoindre l'association."
           fileSlugPrefix="asso-invite"
           onClose={() => setQrInvitation(null)}
-          logoUrl={organizationLogo}
+          center={buildQRCenter(qrInvitation, organizationLogo)}
         />
       )}
 

@@ -1,3 +1,6 @@
+import type { InvitationDecoration } from "../../types/models";
+import type { QRCenter } from "./InvitationQRModal";
+
 interface InvitationStatusShape {
   expires_at: string | null;
   max_uses: number | null;
@@ -6,6 +9,34 @@ interface InvitationStatusShape {
 }
 
 export const SLUG_RE = /^[A-Za-z0-9_-]{2,60}$/;
+
+export const DECORATION_LOGO = "logo" as const;
+export const DECORATION_TEXT = "text" as const;
+export const DECORATION_TEXT_MAX = 10;
+
+export const DEFAULT_DECORATION: InvitationDecoration = {
+  decoration_type: DECORATION_LOGO,
+  decoration_text: "",
+  decoration_bg_color: "#ffffff",
+  decoration_text_color: "#000000",
+};
+
+export function buildQRCenter(
+  decoration: InvitationDecoration,
+  logoUrl: string | null,
+): QRCenter {
+  if (decoration.decoration_type === DECORATION_TEXT) {
+    const text = decoration.decoration_text.trim();
+    if (!text) return logoUrl ? { kind: "logo", url: logoUrl } : null;
+    return {
+      kind: "text",
+      text,
+      bg: decoration.decoration_bg_color,
+      fg: decoration.decoration_text_color,
+    };
+  }
+  return logoUrl ? { kind: "logo", url: logoUrl } : null;
+}
 
 export function formatDateShort(iso: string | null) {
   if (!iso) return null;

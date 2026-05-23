@@ -14,6 +14,13 @@ class TimestampMixin(models.Model):
 
 
 class BaseInvitation(models.Model):
+    DECORATION_LOGO = "logo"
+    DECORATION_TEXT = "text"
+    DECORATION_CHOICES = [
+        (DECORATION_LOGO, "Logo de l'association"),
+        (DECORATION_TEXT, "Texte personnalisé"),
+    ]
+
     token = models.CharField(max_length=60, unique=True, db_index=True)
     label = models.CharField(max_length=100, blank=True)
     created_by = models.ForeignKey(
@@ -28,6 +35,12 @@ class BaseInvitation(models.Model):
     use_count = models.PositiveIntegerField(default=0)
     is_promoted = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    decoration_type = models.CharField(
+        max_length=8, choices=DECORATION_CHOICES, default=DECORATION_LOGO
+    )
+    decoration_text = models.CharField(max_length=10, blank=True)
+    decoration_bg_color = models.CharField(max_length=7, default="#ffffff")
+    decoration_text_color = models.CharField(max_length=7, default="#000000")
 
     class Meta:
         abstract = True

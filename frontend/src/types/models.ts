@@ -103,7 +103,16 @@ export interface EventMembership {
 
 export type InvalidReason = "expired" | "exhausted" | "inactive";
 
-export interface EventInvitation {
+export type DecorationType = "logo" | "text";
+
+export interface InvitationDecoration {
+  decoration_type: DecorationType;
+  decoration_text: string;
+  decoration_bg_color: string;
+  decoration_text_color: string;
+}
+
+export interface EventInvitation extends InvitationDecoration {
   id: number;
   token: string;
   label: string;
@@ -117,7 +126,7 @@ export interface EventInvitation {
   is_active: boolean;
 }
 
-export interface EventInvitationCreateData {
+export interface EventInvitationCreateData extends Partial<InvitationDecoration> {
   label?: string;
   token?: string;
   expires_at?: string | null;
@@ -149,7 +158,7 @@ export interface InvitationAcceptResponse {
   organization_id: number;
 }
 
-export interface OrganizationInvitation {
+export interface OrganizationInvitation extends InvitationDecoration {
   id: number;
   token: string;
   label: string;
@@ -163,7 +172,7 @@ export interface OrganizationInvitation {
   is_active: boolean;
 }
 
-export interface OrganizationInvitationCreateData {
+export interface OrganizationInvitationCreateData extends Partial<InvitationDecoration> {
   label?: string;
   token?: string;
   expires_at?: string | null;

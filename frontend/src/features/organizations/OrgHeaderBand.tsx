@@ -1,9 +1,12 @@
-import { Building2, QrCode, Settings, Users } from "lucide-react";
+import { QrCode, Settings, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import * as orgsApi from "../../api/organizations";
+import { OrgLogoBox } from "../../components/OrgLogoBox";
 import type { Organization, OrganizationInvitation } from "../../types/models";
+import { pluralFr } from "../../utils/pluralFr";
 import { InvitationQRModal } from "../invitations/InvitationQRModal";
+import { buildQRCenter } from "../invitations/utils";
 
 interface Props {
   org: Organization;
@@ -32,19 +35,7 @@ export function OrgHeaderBand({ org }: Props) {
   return (
     <>
       <section className="mb-6 flex flex-wrap items-center gap-4 rounded-xl bg-white p-4 ring-1 ring-gray-200">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gray-50 ring-1 ring-gray-200">
-          {org.logo ? (
-            <img
-              src={org.logo}
-              alt={`Logo ${org.name}`}
-              loading="lazy"
-              decoding="async"
-              className="h-full w-full object-contain p-1"
-            />
-          ) : (
-            <Building2 className="h-7 w-7 text-gray-300" />
-          )}
-        </div>
+        <OrgLogoBox src={org.logo} alt={`Logo ${org.name}`} />
 
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-lg font-semibold text-gray-900">
@@ -58,7 +49,7 @@ export function OrgHeaderBand({ org }: Props) {
             )}
             <span className="inline-flex items-center gap-1 text-gray-500">
               <Users className="h-3.5 w-3.5" />
-              {org.member_count} membre{org.member_count > 1 ? "s" : ""}
+              {pluralFr(org.member_count, "membre")}
             </span>
           </div>
         </div>
@@ -95,7 +86,7 @@ export function OrgHeaderBand({ org }: Props) {
           description="Scannez ou partagez ce QR code pour rejoindre l'association."
           fileSlugPrefix="asso-invite"
           onClose={() => setQrInvitation(null)}
-          logoUrl={org.logo}
+          center={buildQRCenter(qrInvitation, org.logo)}
         />
       )}
     </>

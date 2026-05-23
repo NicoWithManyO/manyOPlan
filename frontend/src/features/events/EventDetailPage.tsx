@@ -21,6 +21,7 @@ import { searchUsers, type UserSearchResult } from "../../api/users";
 import { EventPoster } from "../../components/EventPoster";
 import { OrgLogo } from "../../components/OrgLogo";
 import { Button } from "../../components/ui/Button";
+import { pluralFr } from "../../utils/pluralFr";
 import { NewsPage } from "../news/NewsPage";
 import { DashboardView } from "../planning/DashboardView";
 import { PlanningView } from "../planning/PlanningView";
@@ -34,6 +35,7 @@ import type { EventInvitation } from "../../types/models";
 import { cn } from "../../utils/cn";
 import { EventPosterModal } from "./EventPosterModal";
 import { InvitationQRModal } from "../invitations/InvitationQRModal";
+import { buildQRCenter } from "../invitations/utils";
 
 type Tab = "table" | "planning" | "dashboard" | "tasks" | "members" | "news";
 
@@ -194,8 +196,7 @@ export function EventDetailPage() {
             </div>
             <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
               <Users className="h-4 w-4" />
-              {currentEvent.member_count} membre
-              {currentEvent.member_count > 1 ? "s" : ""}
+              {pluralFr(currentEvent.member_count, "membre")}
               <span className="text-gray-400">·</span>
               <span>{currentEvent.organization_name}</span>
             </div>
@@ -286,7 +287,7 @@ export function EventDetailPage() {
           token={qrInvitation.token}
           label={qrInvitation.label}
           onClose={() => setQrInvitation(null)}
-          logoUrl={currentEvent.organization_logo}
+          center={buildQRCenter(qrInvitation, currentEvent.organization_logo)}
         />
       )}
 
