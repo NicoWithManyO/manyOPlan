@@ -38,7 +38,7 @@ class BaseInvitation(models.Model):
     decoration_type = models.CharField(
         max_length=8, choices=DECORATION_CHOICES, default=DECORATION_LOGO
     )
-    decoration_text = models.CharField(max_length=10, blank=True)
+    decoration_text = models.CharField(max_length=15, blank=True)
     decoration_bg_color = models.CharField(max_length=7, default="#ffffff")
     decoration_text_color = models.CharField(max_length=7, default="#000000")
 

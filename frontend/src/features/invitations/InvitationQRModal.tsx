@@ -1,6 +1,6 @@
 import { Copy, Download, X } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "../../components/ui/Button";
 import { copyToClipboard } from "../../utils/copyToClipboard";
@@ -24,6 +24,52 @@ interface Props {
   center: QRCenter;
 }
 
+const FONT_FAMILY = 'system-ui, -apple-system, "Segoe UI", sans-serif';
+const LINE_HEIGHT_RATIO = 1.05;
+const fontString = (size: number) => `700 ${size}px ${FONT_FAMILY}`;
+
+function splitInto(text: string, parts: number): string[] {
+  if (parts <= 1) return [text];
+  const target = text.length / parts;
+  const result: string[] = [];
+  let cursor = 0;
+  for (let i = 1; i < parts; i++) {
+    const ideal = Math.round(target * i);
+    let cut = ideal;
+    for (let d = 1; d <= 3; d++) {
+      if (text[ideal - d] === " ") {
+        cut = ideal - d;
+        break;
+      }
+      if (text[ideal + d] === " ") {
+        cut = ideal + d;
+        break;
+      }
+    }
+    result.push(text.slice(cursor, cut).trim());
+    cursor = text[cut] === " " ? cut + 1 : cut;
+  }
+  result.push(text.slice(cursor).trim());
+  return result.filter(Boolean);
+}
+
+function fitFontSize(
+  ctx: CanvasRenderingContext2D,
+  lines: string[],
+  maxWidth: number,
+  maxHeight: number,
+): number {
+  let size = maxHeight / lines.length;
+  for (let i = 0; i < 18; i++) {
+    ctx.font = fontString(size);
+    const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
+    const totalHeight = size * lines.length * LINE_HEIGHT_RATIO;
+    if (widest <= maxWidth && totalHeight <= maxHeight) break;
+    size *= 0.88;
+  }
+  return size;
+}
+
 function buildTextDecorationDataUrl(
   text: string,
   bg: string,
@@ -39,24 +85,30 @@ function buildTextDecorationDataUrl(
   if (!ctx) return null;
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const padding = canvas.width * 0.08;
+  const padding = canvas.width * 0.06;
   const maxWidth = canvas.width - padding * 2;
   const maxHeight = canvas.height - padding * 2;
+
+  const candidates: string[][] = [[text]];
+  for (const parts of [2, 3]) {
+    if (text.length < parts * 2) continue;
+    const split = splitInto(text, parts);
+    if (split.length === parts) candidates.push(split);
+  }
+  const best = candidates
+    .map((lines) => ({ lines, size: fitFontSize(ctx, lines, maxWidth, maxHeight) }))
+    .reduce((a, b) => (b.size > a.size ? b : a));
+
   ctx.fillStyle = fg;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  let fontSize = canvas.height * 0.7;
-  for (let i = 0; i < 12; i++) {
-    ctx.font = `700 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-    const metrics = ctx.measureText(text);
-    const height =
-      (metrics.actualBoundingBoxAscent || fontSize * 0.7) +
-      (metrics.actualBoundingBoxDescent || fontSize * 0.2);
-    if (metrics.width <= maxWidth && height <= maxHeight) break;
-    fontSize *= 0.85;
-  }
-  ctx.font = `700 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
-  ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+  ctx.font = fontString(best.size);
+  const lineStep = best.size * LINE_HEIGHT_RATIO;
+  const totalHeight = lineStep * best.lines.length;
+  const startY = canvas.height / 2 - totalHeight / 2 + lineStep / 2;
+  best.lines.forEach((line, i) => {
+    ctx.fillText(line, canvas.width / 2, startY + i * lineStep);
+  });
   return canvas.toDataURL("image/png");
 }
 
@@ -98,10 +150,14 @@ export function InvitationQRModal({
       .replace(/^-+|-+$/g, "")
       .slice(0, 40) || fileSlugPrefix;
 
-  const textDataUrl =
-    center?.kind === "text"
-      ? buildTextDecorationDataUrl(center.text, center.bg, center.fg, QR_TEXT_SIZE)
-      : null;
+  const textCenter = center?.kind === "text" ? center : null;
+  const textDataUrl = useMemo(
+    () =>
+      textCenter
+        ? buildTextDecorationDataUrl(textCenter.text, textCenter.bg, textCenter.fg, QR_TEXT_SIZE)
+        : null,
+    [textCenter?.text, textCenter?.bg, textCenter?.fg],
+  );
   const imageSettings = buildImageSettings(center, textDataUrl);
   const errorLevel: "L" | "M" | "Q" | "H" = imageSettings ? "H" : "M";
 

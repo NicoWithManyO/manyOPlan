@@ -12,7 +12,7 @@ export const SLUG_RE = /^[A-Za-z0-9_-]{2,60}$/;
 
 export const DECORATION_LOGO = "logo" as const;
 export const DECORATION_TEXT = "text" as const;
-export const DECORATION_TEXT_MAX = 10;
+export const DECORATION_TEXT_MAX = 15;
 
 export const DEFAULT_DECORATION: InvitationDecoration = {
   decoration_type: DECORATION_LOGO,
