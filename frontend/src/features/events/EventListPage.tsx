@@ -2,13 +2,12 @@ import { CalendarDays, Plus, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EventPoster } from "../../components/EventPoster";
-import { OrgLogo } from "../../components/OrgLogo";
 import { Button } from "../../components/ui/Button";
 import { useEventStore } from "../../stores/eventStore";
 import { useOrgStore } from "../../stores/orgStore";
 import type { Event } from "../../types/models";
 import { cn } from "../../utils/cn";
-import { PromotedOrgInvitations } from "../organizations/PromotedOrgInvitations";
+import { OrgHeaderBand } from "../organizations/OrgHeaderBand";
 import { EventPosterModal } from "./EventPosterModal";
 import { MyEngagements } from "./MyEngagements";
 
@@ -52,12 +51,9 @@ function EventCard({ event }: { event: Event }) {
         />
         <div className="min-w-0 flex-1">
           <div className="mb-3 flex items-start justify-between gap-2">
-            <div className="flex min-w-0 items-center gap-2.5">
-              <OrgLogo src={event.organization_logo} className="h-8 w-8" />
-              <h3 className="min-w-0 text-lg font-semibold leading-tight text-gray-900">
-                {event.name}
-              </h3>
-            </div>
+            <h3 className="min-w-0 text-lg font-semibold leading-tight text-gray-900">
+              {event.name}
+            </h3>
             <span
               className={cn(
                 "shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium",
@@ -126,22 +122,12 @@ export function EventListPage() {
 
   return (
     <div>
+      {currentOrg && <OrgHeaderBand key={currentOrg.id} org={currentOrg} />}
+
       <MyEngagements />
 
-      {currentOrg && (
-        <PromotedOrgInvitations
-          orgId={currentOrg.id}
-          organizationLogo={currentOrg.logo}
-        />
-      )}
-
       <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Événements</h2>
-          {currentOrg && (
-            <p className="text-sm text-gray-500">{currentOrg.name}</p>
-          )}
-        </div>
+        <h2 className="text-2xl font-bold text-gray-900">Événements</h2>
         {canCreate && (
           <Link to="/events/new">
             <Button size="md">
