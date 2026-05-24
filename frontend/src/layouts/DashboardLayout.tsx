@@ -5,6 +5,7 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
+  QrCode,
   User,
   X,
 } from "lucide-react";
@@ -18,6 +19,7 @@ import { cn } from "../utils/cn";
 
 const navItems = [
   { to: "/events", icon: CalendarDays, label: "Événements" },
+  { to: "/qr-codes", icon: QrCode, label: "QR codes" },
   { to: "/messages", icon: MessageSquare, label: "Messages" },
   { to: "/profile", icon: User, label: "Profil" },
 ];

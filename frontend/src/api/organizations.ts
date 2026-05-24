@@ -1,4 +1,7 @@
 import type {
+  ExternalQRCode,
+  ExternalQRCodeCreateData,
+  ExternalQRCodeUpdateData,
   Organization,
   OrganizationInvitation,
   OrganizationInvitationCreateData,
@@ -130,4 +133,38 @@ export async function getPromotedOrgInvitations(orgId: number) {
     `/organizations/${orgId}/invitations/promoted/`,
   );
   return res.data;
+}
+
+export async function getOrgExternalQRs(orgId: number) {
+  const res = await client.get<ExternalQRCode[]>(
+    `/organizations/${orgId}/external-qrs/`,
+  );
+  return res.data;
+}
+
+export async function createOrgExternalQR(
+  orgId: number,
+  data: ExternalQRCodeCreateData,
+) {
+  const res = await client.post<ExternalQRCode>(
+    `/organizations/${orgId}/external-qrs/`,
+    data,
+  );
+  return res.data;
+}
+
+export async function updateOrgExternalQR(
+  orgId: number,
+  qrId: number,
+  data: ExternalQRCodeUpdateData,
+) {
+  const res = await client.patch<ExternalQRCode>(
+    `/organizations/${orgId}/external-qrs/${qrId}/`,
+    data,
+  );
+  return res.data;
+}
+
+export async function deleteOrgExternalQR(orgId: number, qrId: number) {
+  await client.delete(`/organizations/${orgId}/external-qrs/${qrId}/`);
 }

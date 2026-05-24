@@ -83,3 +83,35 @@ class OrganizationInvitation(BaseInvitation):
 
     def __str__(self):
         return f"{self.organization} - {self.label or self.token[:8]}"
+
+
+class ExternalQRCode(TimestampMixin):
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        related_name="external_qrs",
+    )
+    label = models.CharField(max_length=100, blank=True)
+    target_url = models.URLField(max_length=2000)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+    )
+    decoration_type = models.CharField(
+        max_length=8,
+        choices=BaseInvitation.DECORATION_CHOICES,
+        default=BaseInvitation.DECORATION_LOGO,
+    )
+    decoration_text = models.CharField(max_length=15, blank=True)
+    decoration_bg_color = models.CharField(max_length=7, default="#ffffff")
+    decoration_text_color = models.CharField(max_length=7, default="#000000")
+
+    class Meta:
+        verbose_name = "QR code externe"
+        verbose_name_plural = "QR codes externes"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.organization} - {self.label or self.target_url[:40]}"

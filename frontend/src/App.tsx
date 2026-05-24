@@ -16,6 +16,7 @@ import { MessagesPage } from "./features/messaging/MessagesPage";
 import { CreateOrgPage } from "./features/organizations/CreateOrgPage";
 import { CreateOrJoinPage } from "./features/organizations/CreateOrJoinPage";
 import { JoinOrgPage } from "./features/organizations/JoinOrgPage";
+import { OrgExternalQRsPage } from "./features/organizations/OrgExternalQRsPage";
 import { OrgSettingsPage } from "./features/organizations/OrgSettingsPage";
 import { AuthLayout } from "./layouts/AuthLayout";
 import { DashboardLayout } from "./layouts/DashboardLayout";
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="/events/new" element={<EventCreatePage />} />
             <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/events/:id/settings" element={<EventSettingsPage />} />
+            <Route path="/qr-codes" element={<OrgExternalQRsPage />} />
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/orgs/create" element={<CreateOrgPage />} />

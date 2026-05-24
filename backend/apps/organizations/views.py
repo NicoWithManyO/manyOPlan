@@ -15,8 +15,14 @@ from apps.accounts.serializers import UserSerializer
 from core.image_utils import fetch_remote_image, validate_and_process_image
 from core.permissions import IsOrgAdmin, IsOrgMember
 
-from .models import Organization, OrganizationInvitation, OrganizationMembership
+from .models import (
+    ExternalQRCode,
+    Organization,
+    OrganizationInvitation,
+    OrganizationMembership,
+)
 from .serializers import (
+    ExternalQRCodeSerializer,
     JoinOrganizationSerializer,
     OrganizationCreateSerializer,
     OrganizationInvitationPreviewSerializer,
@@ -324,6 +330,34 @@ class OrganizationPromotedInvitationsView(generics.ListAPIView):
             .filter(Q(expires_at__isnull=True) | Q(expires_at__gt=now))
             .filter(Q(max_uses__isnull=True) | Q(use_count__lt=F("max_uses")))
         )
+
+
+class OrganizationExternalQRListCreateView(generics.ListCreateAPIView):
+    serializer_class = ExternalQRCodeSerializer
+    permission_classes = (permissions.IsAuthenticated, IsOrgMember)
+    pagination_class = None
+
+    def get_queryset(self):
+        return ExternalQRCode.objects.filter(
+            organization_id=self.kwargs["organization_pk"]
+        ).select_related("created_by")
+
+    def perform_create(self, serializer):
+        serializer.save(
+            organization_id=self.kwargs["organization_pk"],
+            created_by=self.request.user,
+        )
+
+
+class OrganizationExternalQRDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = ExternalQRCodeSerializer
+    permission_classes = (permissions.IsAuthenticated, IsOrgMember)
+    http_method_names = ["get", "patch", "delete", "options", "head"]
+
+    def get_queryset(self):
+        return ExternalQRCode.objects.filter(
+            organization_id=self.kwargs["organization_pk"]
+        ).select_related("created_by")
 
 
 class OrgInvitationPreviewView(APIView):

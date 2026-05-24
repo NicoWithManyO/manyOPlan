@@ -8,7 +8,12 @@ from rest_framework import serializers
 from core.serializers import InvitationDecorationMixin
 from core.validators import check_password_match, normalize_and_check_unique_email
 
-from .models import Organization, OrganizationInvitation, OrganizationMembership
+from .models import (
+    ExternalQRCode,
+    Organization,
+    OrganizationInvitation,
+    OrganizationMembership,
+)
 
 User = get_user_model()
 
@@ -215,6 +220,28 @@ class OrganizationInvitationPreviewSerializer(serializers.Serializer):
         data["is_valid"] = ok
         data["invalid_reason"] = reason
         return data
+
+
+class ExternalQRCreatedBySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    username = serializers.CharField()
+
+
+class ExternalQRCodeSerializer(InvitationDecorationMixin, serializers.ModelSerializer):
+    created_by = ExternalQRCreatedBySerializer(read_only=True)
+
+    class Meta:
+        model = ExternalQRCode
+        fields = (
+            "id",
+            "label",
+            "target_url",
+            "created_at",
+            "updated_at",
+            "created_by",
+            *InvitationDecorationMixin.DECORATION_FIELDS,
+        )
+        read_only_fields = ("id", "created_at", "updated_at", "created_by")
 
 
 class OrgInvitationAcceptSerializer(serializers.Serializer):

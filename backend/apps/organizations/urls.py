@@ -28,4 +28,14 @@ urlpatterns = [
         views.OrganizationInvitationDetailView.as_view(),
         name="org-invitation-detail",
     ),
+    path(
+        "<int:organization_pk>/external-qrs/",
+        views.OrganizationExternalQRListCreateView.as_view(),
+        name="org-external-qr-list",
+    ),
+    path(
+        "<int:organization_pk>/external-qrs/<int:pk>/",
+        views.OrganizationExternalQRDetailView.as_view(),
+        name="org-external-qr-detail",
+    ),
 ] + router.urls

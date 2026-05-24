@@ -18,6 +18,7 @@ interface Props {
   token: string;
   label?: string;
   urlPrefix?: string;
+  urlOverride?: string;
   description?: string;
   fileSlugPrefix?: string;
   onClose: () => void;
@@ -136,13 +137,14 @@ export function InvitationQRModal({
   token,
   label,
   urlPrefix = "/invite/",
+  urlOverride,
   description = "Scannez ou partagez ce QR code pour rejoindre l'événement.",
   fileSlugPrefix = "invite",
   onClose,
   center,
 }: Props) {
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
-  const url = `${window.location.origin}${urlPrefix}${token}`;
+  const url = urlOverride ?? `${window.location.origin}${urlPrefix}${token}`;
   const fileSlug =
     (label || token)
       .toLowerCase()

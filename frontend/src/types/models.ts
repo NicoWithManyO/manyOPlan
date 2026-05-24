@@ -179,6 +179,25 @@ export interface OrganizationInvitationCreateData extends Partial<InvitationDeco
   max_uses?: number | null;
 }
 
+export interface ExternalQRCode extends InvitationDecoration {
+  id: number;
+  label: string;
+  target_url: string;
+  created_at: string;
+  updated_at: string;
+  created_by: { id: number; username: string } | null;
+}
+
+export interface ExternalQRCodeCreateData extends Partial<InvitationDecoration> {
+  label?: string;
+  target_url: string;
+}
+
+export interface ExternalQRCodeUpdateData extends Partial<InvitationDecoration> {
+  label?: string;
+  target_url?: string;
+}
+
 export interface OrgInvitationPreview {
   organization_name: string;
   organization_logo: string | null;
