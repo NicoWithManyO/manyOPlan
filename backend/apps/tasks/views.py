@@ -20,6 +20,9 @@ from .serializers import (
 
 
 class TaskViewSet(viewsets.ModelViewSet):
+    # Le planning d'un event affiche toutes les colonnes : pas de pagination
+    pagination_class = None
+
     def get_queryset(self):
         return (
             Task.objects.filter(event_id=self.kwargs["event_pk"])

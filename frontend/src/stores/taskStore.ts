@@ -47,7 +47,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
     set({ isLoading: true });
     try {
       const data = await tasksApi.getTasks(eventId);
-      set({ tasks: data.results });
+      set({ tasks: data });
     } finally {
       set({ isLoading: false });
     }

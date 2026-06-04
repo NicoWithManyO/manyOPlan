@@ -1,5 +1,4 @@
 import type {
-  PaginatedResponse,
   Slot,
   SlotCreateData,
   Task,
@@ -9,7 +8,7 @@ import client from "./client";
 
 // Tasks
 export async function getTasks(eventId: number) {
-  const res = await client.get<PaginatedResponse<Task>>(
+  const res = await client.get<Task[]>(
     `/events/${eventId}/tasks/`,
   );
   return res.data;
