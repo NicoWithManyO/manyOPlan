@@ -26,6 +26,8 @@ User = get_user_model()
 
 class AssignmentViewSet(viewsets.ModelViewSet):
     serializer_class = AssignmentSerializer
+    # Le planning d'un event affiche toutes les inscriptions : pas de pagination
+    pagination_class = None
     http_method_names = ["get", "post", "patch", "delete"]
 
     def get_queryset(self):

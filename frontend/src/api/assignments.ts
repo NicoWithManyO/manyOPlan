@@ -1,4 +1,4 @@
-import type { Assignment, MyEngagement, PaginatedResponse } from "../types/models";
+import type { Assignment, MyEngagement } from "../types/models";
 import client from "./client";
 
 export async function getMyEngagements() {
@@ -7,7 +7,7 @@ export async function getMyEngagements() {
 }
 
 export async function getAssignments(eventId: number) {
-  const res = await client.get<PaginatedResponse<Assignment>>(
+  const res = await client.get<Assignment[]>(
     `/events/${eventId}/assignments/`,
   );
   return res.data;

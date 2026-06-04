@@ -40,7 +40,7 @@ export const useAssignmentStore = create<AssignmentState>((set, get) => ({
     set({ isLoading: true });
     try {
       const data = await assignmentsApi.getAssignments(eventId);
-      set({ assignments: data.results });
+      set({ assignments: data });
     } finally {
       set({ isLoading: false });
     }
